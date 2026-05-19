@@ -7,18 +7,18 @@ Track current state here. Update this file as each step completes.
 ## Current Status
 
 **Phase:** V1 Build
-**Current Step:** Step 1 — Docker Compose + Temporal + PostgreSQL setup
-**Last Session:** Architecture design completed. Ready to build.
+**Current Step:** Step 2 — Database schema + Alembic migrations
+**Last Session:** Step 1 complete. All 3 containers healthy. Ready for Step 2.
 
 ---
 
 ## V1 Build Steps
 
-- [ ] **Step 1** — Docker Compose + Temporal + PostgreSQL
-  - Docker Compose file with: Temporal server, Temporal UI, PostgreSQL, app, workers
-  - Verify Temporal UI accessible at localhost:8080
-  - Verify PostgreSQL connection
-  - `.env.example` with all required variables
+- [x] **Step 1** — Docker Compose + Temporal + PostgreSQL
+  - Docker Compose file with: Temporal server, Temporal UI, PostgreSQL
+  - Temporal UI accessible at localhost:8080 ✓
+  - PostgreSQL healthy ✓
+  - `.env.example` with all required variables ✓
 
 - [ ] **Step 2** — Database schema + Alembic migrations
   - All tables from data model
