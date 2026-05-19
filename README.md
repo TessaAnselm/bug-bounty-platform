@@ -13,7 +13,7 @@ Depth over breadth. Understanding targets well enough to find what automated too
 - Structured documentation of findings, hypotheses, and session notes
 - Data-driven program selection based on ROI signals
 
-## Stack
+## Planned Stack
 
 Built entirely on free and open source tools. Runs locally with no cloud dependencies.
 

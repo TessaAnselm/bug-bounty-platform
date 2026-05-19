@@ -1,5 +1,7 @@
 # Setup Guide
 
+> **Note:** The files referenced below (`docker-compose.yml`, `requirements.txt`, `src/`, `alembic/`) are created during the build steps in `docs/build/`. Complete Steps 1–3 before running this guide.
+
 Get the platform running from scratch on a new machine.
 
 ## Prerequisites

@@ -9,7 +9,7 @@ It contains everything needed to resume work without re-explaining the design.
 
 An ethical bug bounty research platform built as a **research notebook**, not an automation platform. Philosophy: depth over breadth — manual testing, logic bugs, and chained vulnerabilities that AI and scanners miss.
 
-**First target:** Anthropic's HackerOne bug bounty program (new program, low competition, AI/LLM edge).
+**First target:** An authorized public bug bounty program aligned with AI/API security specialization.
 
 ---
 
