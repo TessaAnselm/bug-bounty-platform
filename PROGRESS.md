@@ -7,8 +7,8 @@ Track current state here. Update this file as each step completes.
 ## Current Status
 
 **Phase:** V1 Build
-**Current Step:** Step 2 — Database schema + Alembic migrations
-**Last Session:** Step 1 complete. All 3 containers healthy. Ready for Step 2.
+**Current Step:** Step 3 — Python Temporal workers + 4 core workflows
+**Last Session:** Step 2 complete. All 9 tables migrated. Snyk scan clean. Ready for Step 3.
 
 ---
 
@@ -20,10 +20,11 @@ Track current state here. Update this file as each step completes.
   - PostgreSQL healthy ✓
   - `.env.example` with all required variables ✓
 
-- [ ] **Step 2** — Database schema + Alembic migrations
-  - All tables from data model
-  - Alembic configured and initial migration generated
-  - Migration runs clean on fresh PostgreSQL
+- [x] **Step 2** — Database schema + Alembic migrations
+  - All 9 tables from data model ✓
+  - Alembic configured and initial migration generated ✓
+  - Migration runs clean, downgrade/upgrade round-trip verified ✓
+  - Snyk code scan: 0 issues ✓
 
 - [ ] **Step 3** — Python Temporal workers + 4 core workflows
   - ProgramOnboardingWorkflow
