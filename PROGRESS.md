@@ -26,13 +26,13 @@ Track current state here. Update this file as each step completes.
   - Migration runs clean, downgrade/upgrade round-trip verified ✓
   - Snyk code scan: 0 issues ✓
 
-- [ ] **Step 3** — Python Temporal workers + 4 core workflows
-  - ProgramOnboardingWorkflow
-  - ReconWorkflow (subfinder → httpx → katana → gau → gowitness → store → diff → alert)
-  - MonitorWorkflow (long-running scheduled loop)
-  - FindingWorkflow (human-in-loop signals)
-  - Rate limiting enforced in recon activities
-  - Ethics checklist gate before recon starts
+- [x] **Step 3** — Python Temporal workers + 4 core workflows
+  - ProgramOnboardingWorkflow ✓
+  - ReconWorkflow (subfinder → httpx → katana → gau → gowitness → store → diff → alert) ✓
+  - MonitorWorkflow (long-running scheduled loop) ✓
+  - FindingWorkflow (human-in-loop signals) ✓
+  - Rate limiting enforced in recon activities ✓
+  - Ethics checklist gate before recon starts ✓
 
 - [ ] **Step 4** — FastAPI dashboard
   - Program list view with scoring
