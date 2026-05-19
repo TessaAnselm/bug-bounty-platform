@@ -85,16 +85,3 @@ Track current state here. Update this file as each step completes.
 | Platform security | Snyk + Semgrep + gitleaks | All free, complementary coverage |
 | Temporal workflows | 4 core only (v1) | Avoid over-engineering before first use |
 
----
-
-## Notes from Last Session
-
-- Removed: scoring_signals table (overkill for v1, top_signals JSONB sufficient)
-- Removed: SQLite (use PostgreSQL only — already needed for Temporal)
-- Removed: 5 extra workflows (CT, GitOSINT, PlatformSync, Discovery, Scoring as workflows)
-  → these become cron scripts or activities within existing workflows
-- Added: dashboard API key auth
-- Added: backup strategy (daily encrypted cron)
-- Added: OPSEC items to ethics checklist
-- Added: SETUP.md + setup.sh in build plan
-- Web3/DeFi: placeholder only, requires Solidity — not in v1 or v2
