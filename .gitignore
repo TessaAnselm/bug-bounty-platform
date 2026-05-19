@@ -13,6 +13,16 @@ credentials*
 session_notes/
 loot/
 
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Artifacts (gitignored per security policy)
+artifacts/
+exports/
+
 # OS
 .DS_Store
 Thumbs.db
