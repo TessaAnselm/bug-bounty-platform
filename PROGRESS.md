@@ -1,0 +1,100 @@
+# Build Progress
+
+Track current state here. Update this file as each step completes.
+
+---
+
+## Current Status
+
+**Phase:** V1 Build
+**Current Step:** Step 1 — Docker Compose + Temporal + PostgreSQL setup
+**Last Session:** Architecture design completed. Ready to build.
+
+---
+
+## V1 Build Steps
+
+- [ ] **Step 1** — Docker Compose + Temporal + PostgreSQL
+  - Docker Compose file with: Temporal server, Temporal UI, PostgreSQL, app, workers
+  - Verify Temporal UI accessible at localhost:8080
+  - Verify PostgreSQL connection
+  - `.env.example` with all required variables
+
+- [ ] **Step 2** — Database schema + Alembic migrations
+  - All tables from data model
+  - Alembic configured and initial migration generated
+  - Migration runs clean on fresh PostgreSQL
+
+- [ ] **Step 3** — Python Temporal workers + 4 core workflows
+  - ProgramOnboardingWorkflow
+  - ReconWorkflow (subfinder → httpx → katana → gau → gowitness → store → diff → alert)
+  - MonitorWorkflow (long-running scheduled loop)
+  - FindingWorkflow (human-in-loop signals)
+  - Rate limiting enforced in recon activities
+  - Ethics checklist gate before recon starts
+
+- [ ] **Step 4** — FastAPI dashboard
+  - Program list view with scoring
+  - Asset view per program (highlight new assets)
+  - Finding pipeline (kanban by status)
+  - Alerts panel
+  - Session notes per asset
+  - Workflow health view (links to Temporal UI)
+  - Basic API key auth
+
+- [ ] **Step 5** — MCP server
+  - Local Python MCP server
+  - Read-only resources: programs, assets, findings, alerts, session_notes,
+    recon_runs, program_scores
+  - Registered in Claude Code settings
+
+- [ ] **Step 6** — CI pipeline
+  - GitHub Actions workflow
+  - gitleaks on every push (secrets check)
+  - Snyk code scan on every push
+  - Semgrep on every push
+  - pytest on every push
+
+---
+
+## V2 Build Steps (After First Paid Finding)
+
+- [ ] Program discovery (bounty-targets-data integration)
+- [ ] Full program scoring model
+- [ ] HackerOne / Bugcrowd API sync
+- [ ] CT log monitoring (crt.sh)
+- [ ] Outcomes / feedback loop
+- [ ] Report export pipeline
+- [ ] Artifact storage (structured)
+
+---
+
+## Decisions Made
+
+| Decision | Choice | Reason |
+|---|---|---|
+| Workflow engine | Temporal OSS | Durability, observability, human-in-loop signals |
+| Database | PostgreSQL | Temporal needs it anyway, avoid SQLite + PG split |
+| AI integration | MCP read-only | Free (Claude Code subscription), no API cost |
+| AI models | Claude Code only | No ChatGPT — breaks free requirement |
+| Dashboard | FastAPI + Jinja2 | Lightweight, no JS framework needed for v1 |
+| Notifications | Discord webhook | Free, instant, zero infrastructure |
+| Scoring | 5-dimension weighted | Payout, Scope, Competition, Fit, Momentum |
+| Recon tools | ProjectDiscovery suite | Free, maintained, composable |
+| First target | Anthropic HackerOne | New program, low competition, AI/LLM edge |
+| Platform security | Snyk + Semgrep + gitleaks | All free, complementary coverage |
+| Temporal workflows | 4 core only (v1) | Avoid over-engineering before first use |
+
+---
+
+## Notes from Last Session
+
+- Removed: scoring_signals table (overkill for v1, top_signals JSONB sufficient)
+- Removed: SQLite (use PostgreSQL only — already needed for Temporal)
+- Removed: 5 extra workflows (CT, GitOSINT, PlatformSync, Discovery, Scoring as workflows)
+  → these become cron scripts or activities within existing workflows
+- Added: dashboard API key auth
+- Added: backup strategy (daily encrypted cron)
+- Added: OPSEC items to ethics checklist
+- Added: SETUP.md + setup.sh in build plan
+- Web3/DeFi: placeholder only, requires Solidity — not in v1 or v2

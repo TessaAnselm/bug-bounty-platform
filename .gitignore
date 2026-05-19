@@ -1,0 +1,23 @@
+# Private — never commit
+targets/
+reports/
+.claude/
+*.json
+*.xml
+*.csv
+outputs/
+.env
+api_keys.txt
+credentials*
+*.log
+session_notes/
+loot/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
