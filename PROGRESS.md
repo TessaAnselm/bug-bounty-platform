@@ -7,8 +7,8 @@ Track current state here. Update this file as each step completes.
 ## Current Status
 
 **Phase:** V1 Build
-**Current Step:** Step 3 — Python Temporal workers + 4 core workflows
-**Last Session:** Step 2 complete. All 9 tables migrated. Snyk scan clean. Ready for Step 3.
+**Current Step:** Step 6 — CI pipeline
+**Last Session:** Step 5 complete. MCP server live, Snyk-clean (0 issues). Ready for Step 6.
 
 ---
 
@@ -34,20 +34,23 @@ Track current state here. Update this file as each step completes.
   - Rate limiting enforced in recon activities ✓
   - Ethics checklist gate before recon starts ✓
 
-- [ ] **Step 4** — FastAPI dashboard
-  - Program list view with scoring
-  - Asset view per program (highlight new assets)
-  - Finding pipeline (kanban by status)
-  - Alerts panel
-  - Session notes per asset
-  - Workflow health view (links to Temporal UI)
-  - Basic API key auth
+- [x] **Step 4** — FastAPI dashboard
+  - Program list view with scoring ✓
+  - Asset view per program (highlight new assets) ✓
+  - Finding pipeline (kanban by status) ✓
+  - Alerts panel ✓
+  - Session notes per asset ✓
+  - Workflow health view (links to Temporal UI) ✓
+  - Basic API key auth ✓
+  - Snyk: fixed 2 open redirect vulns, 0 issues ✓
 
-- [ ] **Step 5** — MCP server
-  - Local Python MCP server
+- [x] **Step 5** — MCP server
+  - Local Python MCP server ✓
   - Read-only resources: programs, assets, findings, alerts, session_notes,
-    recon_runs, program_scores
-  - Registered in Claude Code settings
+    recon_runs, program_scores ✓
+  - 2 tools: search_assets, summarize_program ✓
+  - Registered in .mcp.json (Claude Code auto-discovers on restart) ✓
+  - Snyk code scan: 0 issues ✓
 
 - [ ] **Step 6** — CI pipeline
   - GitHub Actions workflow
