@@ -1,0 +1,19 @@
+frontend.enableClientVersionCheck:
+  - value: false
+    constraints: {}
+
+matching.numTaskqueueReadPartitions:
+  - value: 1
+    constraints: {}
+
+matching.numTaskqueueWritePartitions:
+  - value: 1
+    constraints: {}
+
+history.persistenceMaxQPS:
+  - value: 3000
+    constraints: {}
+
+frontend.persistenceMaxQPS:
+  - value: 3000
+    constraints: {}
