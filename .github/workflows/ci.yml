@@ -41,7 +41,8 @@ jobs:
       - name: Install Semgrep
         run: pip install semgrep
       - name: Run Semgrep
-        run: semgrep --config=auto --error src/
+        # Exclude templates: Django CSRF rules don't apply to FastAPI/Jinja2
+        run: semgrep --config=auto --error --exclude='*.html' src/
 
   # ── 4. Tests ──────────────────────────────────────────────────────────────
   test:
