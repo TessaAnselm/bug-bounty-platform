@@ -30,7 +30,7 @@ jobs:
       - name: Snyk Code scan
         run: snyk code test src/
         env:
-          SNYK_TOKEN: ${{ secrets.miniToken }}
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
   # ── 3. SAST — Semgrep ─────────────────────────────────────────────────────
   semgrep:
