@@ -6,9 +6,9 @@ Track current state here. Update this file as each step completes.
 
 ## Current Status
 
-**Phase:** V1 Build
-**Current Step:** Step 6 — CI pipeline
-**Last Session:** Step 5 complete. MCP server live, Snyk-clean (0 issues). Ready for Step 6.
+**Phase:** V1 Complete — Ready to Hunt
+**Current Step:** V2 / First Program Onboarding
+**Last Session:** Step 6 complete. All CI jobs green (gitleaks, Snyk, Semgrep, pytest). V1 build done.
 
 ---
 
@@ -52,12 +52,12 @@ Track current state here. Update this file as each step completes.
   - Registered in .mcp.json (Claude Code auto-discovers on restart) ✓
   - Snyk code scan: 0 issues ✓
 
-- [ ] **Step 6** — CI pipeline
-  - GitHub Actions workflow
-  - gitleaks on every push (secrets check)
-  - Snyk code scan on every push
-  - Semgrep on every push
-  - pytest on every push
+- [x] **Step 6** — CI pipeline
+  - GitHub Actions workflow ✓
+  - gitleaks on every push (secrets check) ✓
+  - Snyk code scan on every push ✓
+  - Semgrep on every push ✓
+  - pytest on every push (6 smoke tests) ✓
 
 ---
 
