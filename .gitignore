@@ -23,6 +23,9 @@ __pycache__/
 artifacts/
 exports/
 
+# Runtime logs
+logs/
+
 # OS
 .DS_Store
 Thumbs.db
