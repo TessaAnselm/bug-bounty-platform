@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Findings Pipeline — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Findings Pipeline</span>
+</div>
+
+<div class="pipeline">
+  {% for status_key, status_label in columns %}
+  <div class="pipeline-col">
+    <div class="pipeline-col-header">
+      <span>{{ status_label }}</span>
+      <span class="count">{{ by_status[status_key]|length }}</span>
+    </div>
+    <div class="pipeline-cards">
+      {% for item in by_status[status_key] %}
+      {% set f = item.finding %}
+      {% set p = item.program %}
+      <div class="finding-card">
+        <div class="title"><a href="/findings/{{ f.id }}?api_key={{ api_key }}">{{ f.title }}</a></div>
+        <div class="meta">
+          <span class="badge badge-{{ f.severity.value }}">{{ f.severity.value }}</span>
+          {% if p %}<span>{{ p.name }}</span>{% endif %}
+          <span>{{ f.vuln_type }}</span>
+        </div>
+        <form method="post" action="/findings/{{ f.id }}/status" style="margin-top: 0.5rem; display: flex; gap: 0.35rem;">
+          <input type="hidden" name="api_key" value="{{ api_key }}">
+          <select name="new_status" class="form-select" style="font-size:11px; padding: 0.15rem 0.35rem;">
+            {% for s, _ in columns %}
+            <option value="{{ s }}" {% if s == status_key %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm">→</button>
+        </form>
+      </div>
+      {% else %}
+      <div style="color: var(--text-muted); font-size: 12px; padding: 0.5rem; text-align: center;">—</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

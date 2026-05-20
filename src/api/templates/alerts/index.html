@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Alerts — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Alerts</span>
+  {% set unseen = alerts | selectattr("seen", "equalto", false) | list %}
+  {% if unseen %}
+  <form method="post" action="/alerts/seen-all">
+    <input type="hidden" name="api_key" value="{{ api_key }}">
+    <button type="submit" class="btn btn-sm">Mark all seen ({{ unseen|length }})</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if alerts %}
+<div class="card" style="padding: 0;">
+  {% for a in alerts %}
+  <div class="alert-item {% if not a.seen %}unseen{% endif %}">
+    <div class="msg">
+      <strong>{{ a.type }}</strong> — {{ a.message }}
+      <div class="alert-meta">
+        {% if programs.get(a.program_id|string) %}{{ programs[a.program_id|string].name }} · {% endif %}
+        {{ a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else "" }}
+      </div>
+    </div>
+    {% if not a.seen %}
+    <form method="post" action="/alerts/{{ a.id }}/seen">
+      <input type="hidden" name="api_key" value="{{ api_key }}">
+      <button type="submit" class="btn btn-sm">✓</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No alerts.</div>
+{% endif %}
+{% endblock %}

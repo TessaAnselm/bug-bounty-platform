@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ program.name }} — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">
+    <a href="/programs?api_key={{ api_key }}">Programs</a> / {{ program.name }}
+  </span>
+  <span class="badge badge-{{ program.status.value }}">{{ program.status.value }}</span>
+</div>
+
+<div class="detail-grid">
+  <div class="card">
+    <dl class="kv-list">
+      <dt>Platform</dt><dd>{{ program.platform }}</dd>
+      <dt>Max payout</dt><dd>{% if program.max_payout %}${{ "{:,}".format(program.max_payout) }}{% else %}Unknown{% endif %}</dd>
+      <dt>Created</dt><dd>{{ program.created_at.strftime("%Y-%m-%d") if program.created_at else "—" }}</dd>
+      <dt>Scope items</dt><dd>{{ program.scope | length }}</dd>
+    </dl>
+  </div>
+
+  {% if scores %}
+  {% set s = scores[0] %}
+  <div class="card">
+    <div style="font-size: 32px; font-weight: 700; color: var(--accent); margin-bottom: 0.5rem;">{{ "%.1f"|format(s.total_score) }}</div>
+    {% for label, val in [("Payout", s.payout_score), ("Scope", s.scope_score), ("Competition", s.competition_score), ("Fit", s.fit_score), ("Momentum", s.momentum_score)] %}
+    <div class="score-bar-container">
+      <span class="score-bar-label">{{ label }}</span>
+      <div class="score-bar-track"><div class="score-bar-fill" style="width: {{ val }}%"></div></div>
+      <span class="score-bar-value">{{ "%.0f"|format(val) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="detail-section">
+  <h2>Scope</h2>
+  <div class="tech-list">
+    {% for s in program.scope %}<span class="tech-tag">{{ s }}</span>{% endfor %}
+  </div>
+</div>
+
+{% if program.out_of_scope %}
+<div class="detail-section">
+  <h2>Out of Scope</h2>
+  <div class="tech-list">
+    {% for s in program.out_of_scope %}<span class="tech-tag" style="opacity:0.5">{{ s }}</span>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="detail-section">
+  <h2>Links</h2>
+  <div style="display: flex; gap: 1rem;">
+    <a href="/assets?program_id={{ program.id }}&api_key={{ api_key }}" class="btn">View Assets</a>
+    <a href="/findings?api_key={{ api_key }}" class="btn">View Findings</a>
+  </div>
+</div>
+
+{% if recon_runs %}
+<div class="detail-section">
+  <h2>Recent Recon Runs</h2>
+  <table>
+    <thead><tr><th>Started</th><th>Status</th><th>Assets Found</th><th>New</th><th>Duration</th></tr></thead>
+    <tbody>
+    {% for r in recon_runs %}
+    <tr>
+      <td>{{ r.started_at.strftime("%m/%d %H:%M") if r.started_at else "—" }}</td>
+      <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
+      <td>{{ r.assets_found }}</td>
+      <td>{% if r.new_assets > 0 %}<span class="badge badge-new">+{{ r.new_assets }}</span>{% else %}0{% endif %}</td>
+      <td>{% if r.completed_at and r.started_at %}{{ ((r.completed_at - r.started_at).total_seconds() | int) }}s{% else %}—{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

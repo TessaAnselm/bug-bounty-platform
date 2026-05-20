@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.value }} — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">
+    <a href="/assets?api_key={{ api_key }}">Assets</a> / {{ asset.value }}
+  </span>
+  <span class="badge badge-{{ asset.status.value }}">{{ asset.status.value }}</span>
+</div>
+
+<div class="detail-grid">
+  <div class="card">
+    <dl class="kv-list">
+      <dt>Program</dt><dd>{% if program %}<a href="/programs/{{ program.id }}?api_key={{ api_key }}">{{ program.name }}</a>{% else %}—{% endif %}</dd>
+      <dt>Type</dt><dd><span class="badge badge-info">{{ asset.type.value }}</span></dd>
+      <dt>HTTP Status</dt><dd>{% if asset.http_status %}<code>{{ asset.http_status }}</code>{% else %}—{% endif %}</dd>
+      <dt>Is New</dt><dd>{% if asset.is_new %}<span class="badge badge-new">Yes</span>{% else %}No{% endif %}</dd>
+      <dt>First Seen</dt><dd>{{ asset.first_seen.strftime("%Y-%m-%d %H:%M") if asset.first_seen else "—" }}</dd>
+      <dt>Last Seen</dt><dd>{{ asset.last_seen.strftime("%Y-%m-%d %H:%M") if asset.last_seen else "—" }}</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <div class="detail-section" style="margin-top:0">
+      <h2>Technologies</h2>
+      {% if asset.technologies %}
+      <div class="tech-list">{% for t in asset.technologies %}<span class="tech-tag">{{ t }}</span>{% endfor %}</div>
+      {% else %}<div class="empty" style="padding:0.5rem">None detected</div>{% endif %}
+    </div>
+    <div class="detail-section">
+      <h2>Ports</h2>
+      {% if asset.ports %}
+      <div class="tech-list">{% for p in asset.ports %}<span class="tech-tag">{{ p }}</span>{% endfor %}</div>
+      {% else %}<div class="empty" style="padding:0.5rem">None recorded</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if findings %}
+<div class="detail-section">
+  <h2>Linked Findings</h2>
+  <table>
+    <thead><tr><th>Title</th><th>Severity</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for f in findings %}
+    <tr>
+      <td>{{ f.title }}</td>
+      <td><span class="badge badge-{{ f.severity.value }}">{{ f.severity.value }}</span></td>
+      <td><span class="badge">{{ f.status.value }}</span></td>
+      <td><a href="/findings/{{ f.id }}?api_key={{ api_key }}">View</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="detail-section">
+  <h2>Session Notes</h2>
+  {% for note in notes %}
+  <div class="note-item">{{ note.content }}<div class="note-meta"><span>{{ note.created_at.strftime("%Y-%m-%d %H:%M") if note.created_at else "" }}</span><form class="inline" method="post" action="/notes/{{ note.id }}/delete"><input type="hidden" name="api_key" value="{{ api_key }}"><input type="hidden" name="asset_id" value="{{ asset.id }}"><input type="hidden" name="program_id" value="{{ asset.program_id }}"><button type="submit" class="btn btn-sm btn-danger">Delete</button></form></div></div>
+  {% else %}
+  <div class="empty" style="padding: 1rem 0; text-align: left;">No notes yet.</div>
+  {% endfor %}
+
+  <form method="post" action="/notes" style="margin-top: 0.75rem;">
+    <input type="hidden" name="api_key" value="{{ api_key }}">
+    <input type="hidden" name="program_id" value="{{ asset.program_id }}">
+    <input type="hidden" name="asset_id" value="{{ asset.id }}">
+    <textarea name="content" class="form-textarea" placeholder="Add a note (markdown supported)..."></textarea>
+    <div style="margin-top: 0.5rem;"><button type="submit" class="btn btn-primary btn-sm">Add Note</button></div>
+  </form>
+</div>
+{% endblock %}

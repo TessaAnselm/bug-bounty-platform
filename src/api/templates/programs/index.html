@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Programs — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Programs</span>
+</div>
+
+{% if programs %}
+<div class="card-grid">
+  {% for item in programs %}
+  {% set p = item.program %}
+  {% set s = item.score %}
+  <div class="program-card">
+    <div class="name"><a href="/programs/{{ p.id }}?api_key={{ api_key }}">{{ p.name }}</a></div>
+    <div class="meta">
+      {{ p.platform }}
+      &nbsp;·&nbsp;
+      <span class="badge badge-{{ p.status.value }}">{{ p.status.value }}</span>
+      {% if item.unseen_alerts > 0 %}
+      &nbsp;·&nbsp; <span class="badge badge-new">{{ item.unseen_alerts }} alerts</span>
+      {% endif %}
+    </div>
+
+    {% if s %}
+    <div class="score">{{ "%.0f"|format(s.total_score) }}</div>
+    <div class="score-label">Score</div>
+    <div style="margin-top: 0.75rem;">
+      {% for label, val in [("Payout", s.payout_score), ("Scope", s.scope_score), ("Competition", s.competition_score), ("Fit", s.fit_score), ("Momentum", s.momentum_score)] %}
+      <div class="score-bar-container">
+        <span class="score-bar-label">{{ label }}</span>
+        <div class="score-bar-track"><div class="score-bar-fill" style="width: {{ val }}%"></div></div>
+        <span class="score-bar-value">{{ "%.0f"|format(val) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% if s.top_signals %}
+    <div style="margin-top: 0.5rem;" class="tech-list">
+      {% for sig in s.top_signals %}<span class="tech-tag">{{ sig }}</span>{% endfor %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="score" style="color: var(--text-muted)">—</div>
+    <div class="score-label">Not scored</div>
+    {% endif %}
+
+    <div class="stats">
+      <span>Max payout: <span class="stat-value">{% if p.max_payout %}${{ "{:,}".format(p.max_payout) }}{% else %}Unknown{% endif %}</span></span>
+      {% if item.latest_recon %}
+      <span>Last recon: <span class="stat-value">{{ item.latest_recon.started_at.strftime("%m/%d %H:%M") }}</span></span>
+      {% if item.latest_recon.new_assets > 0 %}
+      <span class="badge badge-new">+{{ item.latest_recon.new_assets }} new</span>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No programs yet. Onboard one with <code>python src/scripts/onboard_program.py</code></div>
+{% endif %}
+{% endblock %}

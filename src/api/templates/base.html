@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Bug Bounty Platform{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <span class="brand">🔍 Bug Bounty</span>
+  <a href="/programs?api_key={{ api_key }}" {% if active == 'programs' %}class="active"{% endif %}>Programs</a>
+  <a href="/assets?api_key={{ api_key }}" {% if active == 'assets' %}class="active"{% endif %}>Assets</a>
+  <a href="/findings?api_key={{ api_key }}" {% if active == 'findings' %}class="active"{% endif %}>Findings</a>
+  <a href="/alerts?api_key={{ api_key }}" {% if active == 'alerts' %}class="active"{% endif %}>Alerts</a>
+  <a href="/dashboard/health?api_key={{ api_key }}" {% if active == 'health' %}class="active"{% endif %}>Health</a>
+  <span class="spacer"></span>
+  <a href="http://localhost:8080" target="_blank" class="ext-link">Temporal UI ↗</a>
+</nav>
+<div class="container">
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

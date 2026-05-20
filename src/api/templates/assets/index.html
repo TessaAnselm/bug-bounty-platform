@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Assets — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Assets</span>
+</div>
+
+<form class="filters" method="get">
+  <input type="hidden" name="api_key" value="{{ api_key }}">
+  <select name="program_id" onchange="this.form.submit()">
+    <option value="">All programs</option>
+    {% for p in programs %}
+    <option value="{{ p.id }}" {% if filter_program_id == p.id|string %}selected{% endif %}>{{ p.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="asset_type" onchange="this.form.submit()">
+    <option value="">All types</option>
+    {% for t in ["subdomain","ip","url","api_endpoint","mobile","other"] %}
+    <option value="{{ t }}" {% if filter_type == t %}selected{% endif %}>{{ t }}</option>
+    {% endfor %}
+  </select>
+  <select name="status" onchange="this.form.submit()">
+    <option value="">All statuses</option>
+    {% for s in ["active","inactive","out_of_scope"] %}
+    <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+  <select name="is_new" onchange="this.form.submit()">
+    <option value="">All</option>
+    <option value="true" {% if filter_is_new == true %}selected{% endif %}>New only</option>
+  </select>
+</form>
+
+{% if assets %}
+<table>
+  <thead><tr><th>Value</th><th>Type</th><th>Status</th><th>HTTP</th><th>Technologies</th><th>First Seen</th><th>Last Seen</th></tr></thead>
+  <tbody>
+  {% for a in assets %}
+  <tr {% if a.is_new %}class="is-new"{% endif %}>
+    <td><a href="/assets/{{ a.id }}?api_key={{ api_key }}">{{ a.value }}</a>{% if a.is_new %} <span class="badge badge-new" style="font-size:10px">NEW</span>{% endif %}</td>
+    <td><span class="badge badge-info">{{ a.type.value }}</span></td>
+    <td><span class="badge badge-{{ a.status.value }}">{{ a.status.value }}</span></td>
+    <td>{% if a.http_status %}<code>{{ a.http_status }}</code>{% else %}—{% endif %}</td>
+    <td>
+      {% if a.technologies %}
+      <div class="tech-list">{% for t in a.technologies[:3] %}<span class="tech-tag">{{ t }}</span>{% endfor %}{% if a.technologies|length > 3 %}<span class="tech-tag">+{{ a.technologies|length - 3 }}</span>{% endif %}</div>
+      {% else %}—{% endif %}
+    </td>
+    <td>{{ a.first_seen.strftime("%m/%d %H:%M") if a.first_seen else "—" }}</td>
+    <td>{{ a.last_seen.strftime("%m/%d %H:%M") if a.last_seen else "—" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<div style="margin-top: 0.75rem; color: var(--text-muted); font-size: 12px;">{{ assets|length }} assets</div>
+{% else %}
+<div class="empty">No assets found. Run a recon workflow first.</div>
+{% endif %}
+{% endblock %}

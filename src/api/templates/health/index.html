@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Health — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Workflow Health</span>
+  <a href="http://localhost:8080" target="_blank" class="btn btn-sm">Temporal UI ↗</a>
+</div>
+
+<div style="color: var(--text-muted); font-size: 13px; margin-bottom: 1rem;">Recon runs — last 7 days</div>
+
+{% if runs %}
+<table>
+  <thead><tr><th>Program</th><th>Started</th><th>Status</th><th>Assets Found</th><th>New</th><th>Duration</th><th>Triggered By</th></tr></thead>
+  <tbody>
+  {% for item in runs %}
+  {% set r = item.run %}
+  <tr>
+    <td>{% if item.program %}<a href="/programs/{{ r.program_id }}?api_key={{ api_key }}">{{ item.program.name }}</a>{% else %}{{ r.program_id }}{% endif %}</td>
+    <td>{{ r.started_at.strftime("%m/%d %H:%M") if r.started_at else "—" }}</td>
+    <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
+    <td>{{ r.assets_found }}</td>
+    <td>{% if r.new_assets > 0 %}<span class="badge badge-new">+{{ r.new_assets }}</span>{% else %}0{% endif %}</td>
+    <td>{% if item.duration_s %}{{ item.duration_s }}s{% else %}—{% endif %}</td>
+    <td><span style="color: var(--text-muted); font-size: 12px;">{{ r.triggered_by }}</span></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">No recon runs in the last 7 days.</div>
+{% endif %}
+{% endblock %}

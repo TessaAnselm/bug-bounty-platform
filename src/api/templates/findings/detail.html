@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ finding.title }} — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">
+    <a href="/findings?api_key={{ api_key }}">Findings</a> / {{ finding.title }}
+  </span>
+  <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value }}</span>
+</div>
+
+<div class="detail-grid">
+  <div class="card">
+    <dl class="kv-list">
+      <dt>Program</dt><dd>{% if program %}<a href="/programs/{{ program.id }}?api_key={{ api_key }}">{{ program.name }}</a>{% else %}—{% endif %}</dd>
+      <dt>Vuln Type</dt><dd>{{ finding.vuln_type }}</dd>
+      <dt>Status</dt><dd><span class="badge">{{ finding.status.value if finding.status else "—" }}</span></dd>
+      <dt>Payout</dt><dd>{% if finding.payout_amount %}${{ finding.payout_amount }}{% else %}—{% endif %}</dd>
+      <dt>Submitted</dt><dd>{{ finding.submitted_at.strftime("%Y-%m-%d") if finding.submitted_at else "—" }}</dd>
+      <dt>Triaged</dt><dd>{{ finding.triaged_at.strftime("%Y-%m-%d") if finding.triaged_at else "—" }}</dd>
+      <dt>Resolved</dt><dd>{{ finding.resolved_at.strftime("%Y-%m-%d") if finding.resolved_at else "—" }}</dd>
+      {% if finding.report_url %}
+      <dt>Report</dt><dd><a href="{{ finding.report_url }}" target="_blank">Link ↗</a></dd>
+      {% endif %}
+      {% if finding.temporal_workflow_id %}
+      <dt>Workflow</dt><dd><code style="font-size:11px">{{ finding.temporal_workflow_id }}</code></dd>
+      {% endif %}
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:13px; font-weight:600; margin-bottom:0.75rem;">Update Status</h2>
+    <form method="post" action="/findings/{{ finding.id }}/status" style="display: flex; gap: 0.5rem; align-items: center;">
+      <input type="hidden" name="api_key" value="{{ api_key }}">
+      <select name="new_status" class="form-select">
+        {% for s in statuses %}
+        <option value="{{ s }}" {% if finding.status and finding.status.value == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">Update</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
