@@ -5,6 +5,7 @@ from sqlalchemy import select
 from src.db.session import engine
 from src.db.models import Program, Asset, ReconRun, AssetType, AssetStatus, ReconStatus
 from src.workflows.types import ProbeResult
+from src.activities.storage.scope import validate_target
 
 
 @activity.defn
@@ -18,7 +19,11 @@ async def load_program_scope(program_id: str) -> dict:
                 f"Program {program_id} is not active — complete ethics checklist first",
                 non_retryable=True,
             )
-        return {"name": program.name, "scope": program.scope or [], "out_of_scope": program.out_of_scope or []}
+        return {
+            "name": program.name,
+            "scope": program.scope or [],
+            "out_of_scope": program.out_of_scope or [],
+        }
 
 
 @activity.defn
@@ -38,11 +43,22 @@ async def create_recon_run(program_id: str, triggered_by: str) -> str:
 
 
 @activity.defn
-async def store_assets(program_id: str, recon_run_id: str, probe_results: list[dict]) -> list[str]:
+async def store_assets(
+    program_id: str,
+    recon_run_id: str,
+    probe_results: list[dict],
+    scope: list[str] | None = None,
+    out_of_scope: list[str] | None = None,
+) -> list[str]:
     asset_ids = []
+    scope = scope or []
+    out_of_scope = out_of_scope or []
 
     with Session(engine) as session:
         for r in probe_results:
+            # Scope enforcement — drop out-of-scope assets before storage
+            if scope and not validate_target(r["input"], scope, out_of_scope):
+                continue
             existing = session.execute(
                 select(Asset).where(
                     Asset.program_id == program_id,

@@ -14,6 +14,7 @@
       <dt>Program</dt><dd>{% if program %}<a href="/programs/{{ program.id }}?api_key={{ api_key }}">{{ program.name }}</a>{% else %}—{% endif %}</dd>
       <dt>Vuln Type</dt><dd>{{ finding.vuln_type }}</dd>
       <dt>Status</dt><dd><span class="badge">{{ finding.status.value if finding.status else "—" }}</span></dd>
+      <dt>Confidence</dt><dd>{% if finding.confidence_score %}{{ (finding.confidence_score * 100) | int }}%{% else %}<span style="color:var(--text-muted)">unset</span>{% endif %}</dd>
       <dt>Payout</dt><dd>{% if finding.payout_amount %}${{ finding.payout_amount }}{% else %}—{% endif %}</dd>
       <dt>Submitted</dt><dd>{{ finding.submitted_at.strftime("%Y-%m-%d") if finding.submitted_at else "—" }}</dd>
       <dt>Triaged</dt><dd>{{ finding.triaged_at.strftime("%Y-%m-%d") if finding.triaged_at else "—" }}</dd>

@@ -37,6 +37,7 @@ class Finding(Base):
     status = Column(Enum(FindingStatus), nullable=False, default=FindingStatus.draft)
     report_url = Column(String, nullable=True)
     payout_amount = Column(Numeric(10, 2), nullable=True)
+    confidence_score = Column(Numeric(3, 2), nullable=True)  # 0.00–1.00, human-assigned
     temporal_workflow_id = Column(String, nullable=True)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     triaged_at = Column(DateTime(timezone=True), nullable=True)

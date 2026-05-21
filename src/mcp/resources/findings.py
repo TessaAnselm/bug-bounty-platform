@@ -15,6 +15,7 @@ def _finding_dict(f: Finding) -> dict:
         "severity": f.severity.value if f.severity else None,
         "status": f.status.value if f.status else None,
         "report_url": f.report_url,
+        "confidence_score": float(f.confidence_score) if f.confidence_score else None,
         "payout_amount": float(f.payout_amount) if f.payout_amount else None,
         "submitted_at": f.submitted_at.isoformat() if f.submitted_at else None,
         "resolved_at": f.resolved_at.isoformat() if f.resolved_at else None,
