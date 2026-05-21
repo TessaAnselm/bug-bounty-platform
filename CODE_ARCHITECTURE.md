@@ -29,6 +29,7 @@ Bug Bounty Project/
 │   ├── activities/         ← The actual work each workflow does
 │   │   ├── recon/          ← Runs subfinder, httpx, screenshots etc.
 │   │   ├── storage/        ← Saves results to the database
+│   │   │   └── scope.py    ← validate_target() — blocks out-of-scope assets
 │   │   ├── scoring/        ← Calculates program scores
 │   │   └── notifications/  ← Sends Discord alerts
 │   │
@@ -64,7 +65,11 @@ Bug Bounty Project/
 ├── docker-compose.yml      ← Tells Docker what servers to run
 ├── requirements.txt        ← All Python packages the code needs
 ├── CLAUDE.md               ← Context file so Claude remembers this project
-└── PROGRESS.md             ← Build tracker (all 6 steps checked off)
+├── PROGRESS.md             ← Build tracker (all 6 steps checked off)
+├── CODE_ARCHITECTURE.md    ← This file
+├── SECURITY.md             ← Safety architecture and responsible disclosure policy
+├── ETHICS.md               ← Ethics commitments and pre-engagement checklist
+└── SCOPE_POLICY.md         ← How scope is defined, enforced, and validated
 ```
 
 ---
@@ -86,7 +91,7 @@ Started with: `docker compose up -d`
 |---|---|
 | programs | Bug bounty programs you are targeting |
 | assets | Domains, subdomains, IPs found during recon |
-| findings | Bugs you discovered |
+| findings | Bugs you discovered (includes confidence_score 0.00–1.00) |
 | recon_runs | History of every recon scan |
 | alerts | Notifications (new assets, changes) |
 | session_notes | Your research notes per asset |
@@ -133,6 +138,21 @@ Registered in `.mcp.json` — Claude Code picks it up automatically on restart.
 | Snyk Code | Security vulnerabilities in your Python code |
 | Semgrep | Additional code security issues |
 | pytest | Broken imports or failed smoke tests |
+
+---
+
+## Safety Architecture
+
+Every layer has a safety gate:
+
+| Gate | Where | What it does |
+|---|---|---|
+| Ethics checklist | Manual (pre-onboarding) | Human confirms authorization before program goes active |
+| Program status check | `load_program_scope()` activity | Recon refuses to run if status is not `active` |
+| Scope enforcement | `validate_target()` in `store_assets` | Out-of-scope assets dropped before DB write |
+| Human approval | FindingWorkflow signals | Status changes require explicit dashboard action |
+| Confidence scoring | `confidence_score` on findings | Human assigns 0–100% confidence before submitting |
+| No autonomous exploitation | Architecture | MCP is read-only, LLM cannot trigger actions |
 
 ---
 

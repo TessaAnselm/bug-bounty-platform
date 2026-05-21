@@ -6,9 +6,9 @@ Track current state here. Update this file as each step completes.
 
 ## Current Status
 
-**Phase:** V1 Complete — Ready to Hunt
-**Current Step:** V2 / First Program Onboarding
-**Last Session:** Step 6 complete. All CI jobs green (gitleaks, Snyk, Semgrep, pytest). V1 build done.
+**Phase:** V1 Complete — Safety Hardened — Ready to Hunt
+**Current Step:** First Program Onboarding
+**Last Session:** Safety guardrails added post-V1: scope enforcement, confidence scoring, SECURITY.md, ETHICS.md, SCOPE_POLICY.md. README and CODE_ARCHITECTURE.md updated.
 
 ---
 
@@ -58,6 +58,14 @@ Track current state here. Update this file as each step completes.
   - Snyk code scan on every push ✓
   - Semgrep on every push ✓
   - pytest on every push (6 smoke tests) ✓
+
+- [x] **Post-V1 Safety Hardening**
+  - SECURITY.md — safety architecture and responsible disclosure ✓
+  - ETHICS.md — ethics commitments and pre-engagement checklist ✓
+  - SCOPE_POLICY.md — scope definition and enforcement docs ✓
+  - validate_target() — technical scope enforcement in store_assets ✓
+  - confidence_score — 0.00–1.00 field on findings (DB migrated) ✓
+  - README.md and CODE_ARCHITECTURE.md updated ✓
 
 ---
 

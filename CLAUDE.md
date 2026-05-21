@@ -81,8 +81,8 @@ assets          id, program_id, type, value, status, technologies(jsonb),
                 last_seen, is_new
 
 findings        id, program_id, asset_id, title, vuln_type, severity,
-                status, report_url, payout_amount, submitted_at,
-                triaged_at, resolved_at, paid_at, temporal_workflow_id
+                status, report_url, payout_amount, confidence_score (0.00–1.00),
+                submitted_at, triaged_at, resolved_at, paid_at, temporal_workflow_id
 
 recon_runs      id, program_id, temporal_workflow_id, status,
                 triggered_by, assets_found, new_assets, started_at,
@@ -137,18 +137,21 @@ Score improves over time from outcomes table (what signals predicted real findin
 
 ---
 
-## V1 Build Order (Current Focus)
+## V1 Build Status
+
+**All 6 steps complete. Safety hardening complete. Ready to hunt.**
 
 ```
-Step 1:   Docker Compose + Temporal + PostgreSQL setup
-Step 2:   DB schema + Alembic migrations
-Step 3:   Python Temporal workers + 4 core workflows
-Step 4:   FastAPI dashboard (program, asset, finding views)
-Step 5:   MCP server (read-only resources)
-Step 6:   CI pipeline (gitleaks + Snyk + Semgrep)
+Step 1:   Docker Compose + Temporal + PostgreSQL setup      ✓
+Step 2:   DB schema + Alembic migrations                    ✓
+Step 3:   Python Temporal workers + 4 core workflows        ✓
+Step 4:   FastAPI dashboard (program, asset, finding views) ✓
+Step 5:   MCP server (read-only resources)                  ✓
+Step 6:   CI pipeline (gitleaks + Snyk + Semgrep + pytest)  ✓
+Post-V1:  Safety guardrails (scope enforcement, confidence) ✓
 ```
 
-See PROGRESS.md for current step and status.
+See PROGRESS.md for full history.
 
 ---
 
@@ -168,6 +171,8 @@ pipeline, artifact storage.
 - Dashboard requires API key auth (key in .env)
 - Snyk MCP is already wired in this session — run on all new code
 - Run gitleaks before every commit
+- `validate_target()` in `src/activities/storage/scope.py` enforces scope technically
+- See SECURITY.md, ETHICS.md, SCOPE_POLICY.md for full safety documentation
 
 ---
 
