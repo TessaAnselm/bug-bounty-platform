@@ -48,7 +48,7 @@ fi
 # API_KEY is intentionally kept as a shell variable only, not exported.
 # It is needed at the end to print the dashboard URL.
 
-if [ -n "$1" ]; then
+if [ -n "${1:-}" ]; then
   API_KEY="$1"
   echo "  Key: using provided argument"
 else
