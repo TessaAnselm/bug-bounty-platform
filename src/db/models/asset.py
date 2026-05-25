@@ -7,6 +7,8 @@ from sqlalchemy.orm import relationship
 from src.db.base import Base
 
 
+
+
 class AssetType(enum.Enum):
     subdomain = "subdomain"
     ip = "ip"
@@ -37,6 +39,10 @@ class Asset(Base):
     first_seen = Column(DateTime(timezone=True), server_default=func.now())
     last_seen = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     is_new = Column(Boolean, nullable=False, default=True)
+    risk_score = Column(Integer, nullable=True)
+    tags = Column(JSONB, nullable=False, default=list)
+    source_tool = Column(String, nullable=True)
+    interesting = Column(Boolean, nullable=False, default=False)
 
     program = relationship("Program", back_populates="assets")
     findings = relationship("Finding", back_populates="asset")

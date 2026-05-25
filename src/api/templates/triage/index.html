@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Triage Queue — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Triage Queue</span>
+  <span style="color: var(--text-muted); font-size: 13px;">{{ assets|length }} assets · sorted by risk score</span>
+</div>
+
+<form class="filters" method="get">
+  <input type="hidden" name="api_key" value="{{ api_key }}">
+
+  <select name="program_id" onchange="this.form.submit()">
+    <option value="">All programs</option>
+    {% for p in programs %}
+    <option value="{{ p.id }}" {% if filter_program_id == p.id|string %}selected{% endif %}>{{ p.name }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="tag" onchange="this.form.submit()">
+    <option value="">All tags</option>
+    {% for t in all_tags %}
+    <option value="{{ t }}" {% if filter_tag == t %}selected{% endif %}>{{ t }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="min_score" onchange="this.form.submit()">
+    <option value="">Any score</option>
+    <option value="70" {% if filter_min_score == 70 %}selected{% endif %}>High risk (70+)</option>
+    <option value="40" {% if filter_min_score == 40 %}selected{% endif %}>Medium risk (40+)</option>
+    <option value="20" {% if filter_min_score == 20 %}selected{% endif %}>Low risk (20+)</option>
+  </select>
+
+  <select name="interesting_only" onchange="this.form.submit()">
+    <option value="">All assets</option>
+    <option value="true" {% if filter_interesting %}selected{% endif %}>Flagged only ★</option>
+  </select>
+</form>
+
+{% if assets %}
+<table>
+  <thead>
+    <tr>
+      <th>Risk</th>
+      <th>Asset</th>
+      <th>Type</th>
+      <th>HTTP</th>
+      <th>Tags</th>
+      <th>Source</th>
+      <th>First Seen</th>
+      <th>Flag</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for a in assets %}
+  <tr {% if a.interesting %}class="is-new"{% endif %}>
+
+    <td>
+      {% if a.risk_score %}
+        {% if a.risk_score >= 70 %}
+          <span class="badge badge-critical">{{ a.risk_score }}</span>
+        {% elif a.risk_score >= 40 %}
+          <span class="badge badge-high">{{ a.risk_score }}</span>
+        {% elif a.risk_score >= 20 %}
+          <span class="badge badge-medium">{{ a.risk_score }}</span>
+        {% else %}
+          <span class="badge badge-info">{{ a.risk_score }}</span>
+        {% endif %}
+      {% else %}
+        <span style="color: var(--text-muted)">—</span>
+      {% endif %}
+    </td>
+
+    <td>
+      <a href="/assets/{{ a.id }}?api_key={{ api_key }}">{{ a.value }}</a>
+      {% if a.is_new %}<span class="badge badge-new" style="font-size:10px">NEW</span>{% endif %}
+      {% if a.interesting %}<span style="color: gold"> ★</span>{% endif %}
+    </td>
+
+    <td><span class="badge badge-info">{{ a.type.value }}</span></td>
+
+    <td>{% if a.http_status %}<code>{{ a.http_status }}</code>{% else %}—{% endif %}</td>
+
+    <td>
+      <div class="tech-list">
+        {% for t in (a.tags or []) %}
+        <span class="tech-tag">{{ t }}</span>
+        {% endfor %}
+      </div>
+    </td>
+
+    <td><span style="color: var(--text-muted); font-size: 12px;">{{ a.source_tool or "—" }}</span></td>
+
+    <td>{{ a.first_seen.strftime("%m/%d %H:%M") if a.first_seen else "—" }}</td>
+
+    <td>
+      <form method="post" action="/triage/{{ a.id }}/flag" style="display:inline;">
+        <input type="hidden" name="api_key" value="{{ api_key }}">
+        <button type="submit" class="btn btn-sm" title="Toggle interesting flag">
+          {% if a.interesting %}★{% else %}☆{% endif %}
+        </button>
+      </form>
+    </td>
+
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  No assets in the triage queue yet.<br>
+  Run recon first, then assets will appear here sorted by risk score.
+</div>
+{% endif %}
+
+<div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-card); border-radius: 6px; font-size: 12px; color: var(--text-muted);">
+  <strong style="color: var(--text-primary);">Risk score guide</strong><br><br>
+  <span class="badge badge-critical">70–100</span> High value — admin panels, auth endpoints, billing, 403/500 responses<br>
+  <span class="badge badge-high" style="margin-top:4px; display:inline-block">40–69</span> Medium value — API endpoints, staging, dev environments<br>
+  <span class="badge badge-medium" style="margin-top:4px; display:inline-block">20–39</span> Low value — standard subdomains, basic URLs<br>
+  <span class="badge badge-info" style="margin-top:4px; display:inline-block">0–19</span> Minimal signal — likely noise<br><br>
+  Click <strong>☆</strong> to flag an asset as interesting. Flagged assets appear highlighted.
+</div>
+{% endblock %}

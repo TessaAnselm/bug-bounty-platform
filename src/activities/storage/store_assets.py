@@ -6,6 +6,7 @@ from src.db.session import engine
 from src.db.models import Program, Asset, ReconRun, AssetType, AssetStatus, ReconStatus
 from src.workflows.types import ProbeResult
 from src.activities.storage.scope import validate_target
+from src.activities.scoring.risk import calculate_risk_score, auto_tag
 
 
 @activity.defn
@@ -69,12 +70,17 @@ async def store_assets(
 
             techs = r.get("technologies", [])
             http_status = r.get("status_code")
+            risk = calculate_risk_score(r["input"], "subdomain", http_status, techs)
+            tags = auto_tag(r["input"], "subdomain", techs)
 
             if existing:
                 existing.technologies = techs
                 existing.http_status = http_status
                 existing.status = AssetStatus.active
                 existing.is_new = False
+                existing.risk_score = risk
+                existing.tags = tags
+                existing.source_tool = r.get("source_tool", "recon")
                 session.flush()
                 asset_ids.append(str(existing.id))
             else:
@@ -87,6 +93,10 @@ async def store_assets(
                     ports=[r["port"]] if r.get("port") else [],
                     http_status=http_status,
                     is_new=True,
+                    risk_score=risk,
+                    tags=tags,
+                    source_tool=r.get("source_tool", "recon"),
+                    interesting=False,
                 )
                 session.add(asset)
                 session.flush()
