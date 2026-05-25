@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Hunt — {{ asset.value if asset else "Session" }}{% endblock %}
+{% block content %}
+
+{# ── Header ─────────────────────────────────────────────────────────── #}
+<div class="page-header">
+  <span class="page-title">Hunt Session</span>
+  <div style="display: flex; gap: 0.5rem; align-items: center;">
+    <form method="post" action="/hunt/{{ hunt.id }}/status" style="display:flex; gap:0.35rem;">
+      <input type="hidden" name="api_key" value="{{ api_key }}">
+      <select name="new_status" class="form-select" style="font-size:11px;">
+        {% for s in statuses %}
+        <option value="{{ s }}" {% if s == hunt.status.value %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm">Update</button>
+    </form>
+    <a href="/findings?api_key={{ api_key }}" class="btn btn-sm">+ New Finding</a>
+  </div>
+</div>
+
+{# ── Asset context ───────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom: 1rem;">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+      <div style="font-size: 16px; font-weight: 600;">
+        <a href="/assets/{{ asset.id }}?api_key={{ api_key }}">{{ asset.value if asset else "Unknown asset" }}</a>
+      </div>
+      <div style="margin-top: 0.35rem; color: var(--text-muted); font-size: 13px;">
+        {{ program.name if program else "—" }}
+        {% if asset %}
+          &nbsp;·&nbsp; {{ asset.type.value }}
+          {% if asset.http_status %}&nbsp;·&nbsp; <code>{{ asset.http_status }}</code>{% endif %}
+          {% if asset.source_tool %}&nbsp;·&nbsp; {{ asset.source_tool }}{% endif %}
+        {% endif %}
+      </div>
+      {% if asset and asset.tags %}
+      <div class="tech-list" style="margin-top: 0.5rem;">
+        {% for t in asset.tags %}<span class="tech-tag">{{ t }}</span>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div style="text-align: right;">
+      {% if asset and asset.risk_score %}
+        {% if asset.risk_score >= 70 %}
+          <span class="badge badge-critical">Risk {{ asset.risk_score }}</span>
+        {% elif asset.risk_score >= 40 %}
+          <span class="badge badge-high">Risk {{ asset.risk_score }}</span>
+        {% else %}
+          <span class="badge badge-medium">Risk {{ asset.risk_score }}</span>
+        {% endif %}
+      {% endif %}
+      <div style="margin-top: 0.35rem;">
+        <span class="badge badge-{{ hunt.status.value }}">{{ hunt.status.value }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Hypothesis ──────────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom: 1rem;">
+  <div style="font-weight: 600; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Hypothesis</div>
+  <div style="color: var(--text-primary); font-size: 14px;">
+    {{ hunt.hypothesis or "No hypothesis set — what do you think the vulnerability might be?" }}
+  </div>
+</div>
+
+{# ── Checklists ──────────────────────────────────────────────────────── #}
+<form method="post" action="/hunt/{{ hunt.id }}/checklist">
+  <input type="hidden" name="api_key" value="{{ api_key }}">
+
+  {% for cl in checklists %}
+  <div class="card" style="margin-bottom: 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+      <div style="font-weight: 600;">{{ cl.name }}</div>
+      <div style="font-size: 12px; color: var(--text-muted);">
+        {{ cl.done }} / {{ cl.total }} checked
+        <span style="margin-left: 0.5rem; color: {% if cl.pct == 100 %}var(--accent){% else %}var(--text-muted){% endif %}">
+          ({{ cl.pct }}%)
+        </span>
+      </div>
+    </div>
+
+    {# Progress bar #}
+    <div class="score-bar-track" style="margin-bottom: 1rem;">
+      <div class="score-bar-fill" style="width: {{ cl.pct }}%;"></div>
+    </div>
+
+    {% for section in cl.sections %}
+    <div style="margin-bottom: 0.75rem;">
+      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.4rem;">
+        {{ section.title }}
+      </div>
+      {% for item in section.items %}
+      <label style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.3rem; cursor: pointer; font-size: 13px; {% if item.checked %}color: var(--text-muted); text-decoration: line-through;{% endif %}">
+        <input type="checkbox"
+               name="check_{{ cl.slug }}_{{ item.index }}"
+               value="1"
+               {% if item.checked %}checked{% endif %}
+               style="margin-top: 2px; flex-shrink: 0;">
+        {{ item.text }}
+      </label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  <button type="submit" class="btn" style="margin-bottom: 1rem;">Save Checklist Progress</button>
+</form>
+
+{# ── Notes ───────────────────────────────────────────────────────────── #}
+<div class="card">
+  <div style="font-weight: 600; margin-bottom: 0.75rem; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Session Notes</div>
+  <form method="post" action="/hunt/{{ hunt.id }}/notes">
+    <input type="hidden" name="api_key" value="{{ api_key }}">
+    <textarea name="notes" rows="10"
+      style="width: 100%; background: var(--bg-main); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 0.75rem; font-family: monospace; font-size: 13px; resize: vertical; box-sizing: border-box;"
+      placeholder="Notes from this session — requests observed, behavior noted, leads to follow...">{{ hunt.notes or "" }}</textarea>
+    <button type="submit" class="btn" style="margin-top: 0.5rem;">Save Notes</button>
+  </form>
+</div>
+
+{% endblock %}

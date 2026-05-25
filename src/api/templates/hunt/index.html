@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Hunt Sessions — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Hunt Sessions</span>
+  <a href="/triage?api_key={{ api_key }}" class="btn btn-sm">+ Start from Triage ↗</a>
+</div>
+
+{% if sessions %}
+<table>
+  <thead>
+    <tr>
+      <th>Asset</th>
+      <th>Program</th>
+      <th>Hypothesis</th>
+      <th>Status</th>
+      <th>Started</th>
+      <th>Duration</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for item in sessions %}
+  {% set h = item.session %}
+  {% set a = item.asset %}
+  {% set p = item.program %}
+  <tr>
+    <td>
+      <a href="/hunt/{{ h.id }}?api_key={{ api_key }}">
+        {{ a.value if a else h.asset_id }}
+      </a>
+    </td>
+    <td>{{ p.name if p else "—" }}</td>
+    <td style="color: var(--text-muted); font-size: 12px;">
+      {{ h.hypothesis[:60] ~ "…" if h.hypothesis and h.hypothesis|length > 60 else (h.hypothesis or "—") }}
+    </td>
+    <td><span class="badge badge-{{ h.status.value }}">{{ h.status.value }}</span></td>
+    <td>{{ h.started_at.strftime("%m/%d %H:%M") if h.started_at else "—" }}</td>
+    <td style="color: var(--text-muted); font-size: 12px;">
+      {% if h.ended_at and h.started_at %}
+        {{ ((h.ended_at - h.started_at).seconds // 60) }}m
+      {% elif h.status.value == "active" %}
+        <span style="color: var(--accent)">Active</span>
+      {% else %}
+        —
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  No hunt sessions yet.<br>
+  Go to the <a href="/triage?api_key={{ api_key }}">Triage Queue</a>, pick a high-risk asset, and start a session.
+</div>
+{% endif %}
+{% endblock %}
