@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from src.api.auth import verify_api_key, API_KEY
+from src.api.auth import verify_api_key
 from src.db.session import engine
 from src.db.models import SessionNote
 
@@ -17,7 +17,7 @@ async def create_note(
     program_id: str = Form(...),
     asset_id: Optional[str] = Form(None),
     content: str = Form(...),
-    _: str = Depends(verify_api_key),
+    api_key: str = Depends(verify_api_key),
 ):
     with Session(engine) as session:
         note = SessionNote(
@@ -27,18 +27,18 @@ async def create_note(
         )
         session.add(note)
         session.commit()
-    return RedirectResponse(url=f"/assets?api_key={API_KEY}", status_code=303)
+    return RedirectResponse(url=f"/assets?api_key={api_key}", status_code=303)
 
 
 @router.post("/{note_id}/delete")
 async def delete_note(
     note_id: str,
     request: Request,
-    _: str = Depends(verify_api_key),
+    api_key: str = Depends(verify_api_key),
 ):
     with Session(engine) as session:
         note = session.get(SessionNote, note_id)
         if note:
             session.delete(note)
             session.commit()
-    return RedirectResponse(url=f"/assets?api_key={API_KEY}", status_code=303)
+    return RedirectResponse(url=f"/assets?api_key={api_key}", status_code=303)

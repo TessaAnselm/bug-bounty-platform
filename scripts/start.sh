@@ -61,13 +61,34 @@ else
   fi
 fi
 
+# ── API key ────────────────────────────────────────────────────────────────
+# Usage: ./start.sh            → generates a new random key each run
+#        ./start.sh mypassword → uses "mypassword" as the key every time
+#
+# The raw key is shown once here and in the URL.
+# Only its SHA-256 hash is stored in .env — the plaintext is never saved.
+
+if [ -n "$1" ]; then
+  API_KEY="$1"
+  echo "  Key: using provided argument"
+else
+  API_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+  echo "  Key: generated random key (pass an argument to set your own)"
+fi
+
+KEY_HASH=$(RAW_KEY="$API_KEY" python3 -c \
+  "import hashlib, os; print(hashlib.sha256(os.environ['RAW_KEY'].encode()).hexdigest())")
+
+if grep -q "^DASHBOARD_API_KEY=" "$PROJECT_DIR/.env" 2>/dev/null; then
+  sed -i '' "s|^DASHBOARD_API_KEY=.*|DASHBOARD_API_KEY=$KEY_HASH|" "$PROJECT_DIR/.env"
+else
+  echo "DASHBOARD_API_KEY=$KEY_HASH" >> "$PROJECT_DIR/.env"
+fi
+
 # ── Done ───────────────────────────────────────────────────────────────────
 echo ""
 echo "==> All systems up"
 echo ""
-
-API_KEY=$(grep DASHBOARD_API_KEY "$PROJECT_DIR/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "changeme")
-
 echo "  Dashboard   http://localhost:8000?api_key=$API_KEY"
 echo "  Temporal UI http://localhost:8080"
 echo "  Logs        $LOGS/"
