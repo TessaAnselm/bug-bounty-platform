@@ -6,9 +6,9 @@ Track current state here. Update this file as each step completes.
 
 ## Current Status
 
-**Phase:** V1 Complete — Safety Hardened — Ready to Hunt
+**Phase:** Hunter Decision Layer Complete — Ready to Hunt
 **Current Step:** First Program Onboarding
-**Last Session:** Safety guardrails added post-V1: scope enforcement, confidence scoring, SECURITY.md, ETHICS.md, SCOPE_POLICY.md. README and CODE_ARCHITECTURE.md updated.
+**Last Session:** Built the full hunter decision layer (Priority 1–3): risk scoring + triage queue, hunt sessions + checklist engine, report builder + export + outcome feedback loop. Platform hardened: SHA-256 API keys, 127.0.0.1 binding, PID file checks. README updated with workflow diagram.
 
 ---
 
@@ -67,17 +67,38 @@ Track current state here. Update this file as each step completes.
   - confidence_score — 0.00–1.00 field on findings (DB migrated) ✓
   - README.md and CODE_ARCHITECTURE.md updated ✓
 
+- [x] **Priority 1 — Risk Scoring + Triage Queue**
+  - risk_score (0–100), tags (JSONB), source_tool, interesting columns on assets ✓
+  - calculate_risk_score() — keyword signals + asset type + HTTP status + tech stack ✓
+  - auto_tag() — generates JSONB tag arrays (admin, api, auth, staging, billing, ...) ✓
+  - /triage view — sorted by risk, filter by program/tag/score/interesting ✓
+  - Flag button (interesting toggle) + Hunt → button per row ✓
+  - import_recon.py — auto-detects subfinder/httpx/katana/plain format, upserts assets ✓
+
+- [x] **Priority 2 — Hunt Sessions + Checklist Engine**
+  - hunt_sessions table — hypothesis, checklists_used, checklist_progress (JSONB), notes ✓
+  - Checklist engine — parses specializations/*/checklist.md, maps tags → checklists ✓
+  - /hunt — session list, start from asset, checklist progress tracking ✓
+  - /hunt/{id} — asset context, status update, checkbox form, notes, progress bars ✓
+  - SHA-256 API key hashing, 127.0.0.1 binding, PID file checks (start.sh hardening) ✓
+
+- [x] **Priority 3 — Report Builder + Export + Outcome Feedback**
+  - summary, vulnerability_details, steps_to_reproduce, impact, recommended_fix on findings ✓
+  - Report builder form on finding detail page with per-field hint text ✓
+  - Export: /findings/{id}/export?fmt=markdown|hackerone|bugcrowd (file download) ✓
+  - Outcome recording: result, payout, time spent, lessons — history displayed on detail ✓
+  - Payout mirrored to finding when result=paid ✓
+
 ---
 
-## V2 Build Steps (After First Paid Finding)
+## Next Steps (Priority 4+)
 
+- [ ] More recon sources: crt.sh, GitHub Search, URLScan, SecurityTrails, Whoxy
+- [ ] Program constraints (JSONB field on programs — rate limits, tool restrictions)
 - [ ] Program discovery (bounty-targets-data integration)
-- [ ] Full program scoring model
+- [ ] Full program scoring model (UI for 5-dimension scores)
 - [ ] HackerOne / Bugcrowd API sync
-- [ ] CT log monitoring (crt.sh)
-- [ ] Outcomes / feedback loop
-- [ ] Report export pipeline
-- [ ] Artifact storage (structured)
+- [ ] Artifact storage (structured screenshots, Burp exports)
 
 ---
 
