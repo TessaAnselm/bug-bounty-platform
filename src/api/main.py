@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 from temporalio.client import Client
 
-from src.api.routers import programs, assets, findings, alerts, notes, health, triage
+from src.api.routers import programs, assets, findings, alerts, notes, health, triage, hunt
 
 load_dotenv()
 
@@ -38,6 +38,7 @@ app.include_router(alerts.router)
 app.include_router(notes.router)
 app.include_router(health.router)
 app.include_router(triage.router)
+app.include_router(hunt.router)
 
 
 @app.get("/", response_class=HTMLResponse)

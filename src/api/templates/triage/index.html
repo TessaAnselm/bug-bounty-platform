@@ -92,12 +92,17 @@
 
     <td>{{ a.first_seen.strftime("%m/%d %H:%M") if a.first_seen else "—" }}</td>
 
-    <td>
+    <td style="display: flex; gap: 0.35rem;">
       <form method="post" action="/triage/{{ a.id }}/flag" style="display:inline;">
         <input type="hidden" name="api_key" value="{{ api_key }}">
         <button type="submit" class="btn btn-sm" title="Toggle interesting flag">
           {% if a.interesting %}★{% else %}☆{% endif %}
         </button>
+      </form>
+      <form method="post" action="/hunt/start" style="display:inline;">
+        <input type="hidden" name="api_key" value="{{ api_key }}">
+        <input type="hidden" name="asset_id" value="{{ a.id }}">
+        <button type="submit" class="btn btn-sm" title="Start hunt session on this asset">Hunt →</button>
       </form>
     </td>
 
