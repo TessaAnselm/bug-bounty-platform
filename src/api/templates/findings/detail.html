@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ finding.title }} — Bug Bounty{% endblock %}
 {% block content %}
+
+{# ── Header ─────────────────────────────────────────────────────────── #}
 <div class="page-header">
   <span class="page-title">
     <a href="/findings?api_key={{ api_key }}">Findings</a> / {{ finding.title }}
@@ -8,29 +10,24 @@
   <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value }}</span>
 </div>
 
-<div class="detail-grid">
+{# ── Meta + status ───────────────────────────────────────────────────── #}
+<div class="detail-grid" style="margin-bottom: 1rem;">
   <div class="card">
     <dl class="kv-list">
       <dt>Program</dt><dd>{% if program %}<a href="/programs/{{ program.id }}?api_key={{ api_key }}">{{ program.name }}</a>{% else %}—{% endif %}</dd>
       <dt>Vuln Type</dt><dd>{{ finding.vuln_type }}</dd>
-      <dt>Status</dt><dd><span class="badge">{{ finding.status.value if finding.status else "—" }}</span></dd>
+      <dt>Status</dt><dd><span class="badge badge-{{ finding.status.value if finding.status else '' }}">{{ finding.status.value if finding.status else "—" }}</span></dd>
       <dt>Confidence</dt><dd>{% if finding.confidence_score %}{{ (finding.confidence_score * 100) | int }}%{% else %}<span style="color:var(--text-muted)">unset</span>{% endif %}</dd>
       <dt>Payout</dt><dd>{% if finding.payout_amount %}${{ finding.payout_amount }}{% else %}—{% endif %}</dd>
       <dt>Submitted</dt><dd>{{ finding.submitted_at.strftime("%Y-%m-%d") if finding.submitted_at else "—" }}</dd>
-      <dt>Triaged</dt><dd>{{ finding.triaged_at.strftime("%Y-%m-%d") if finding.triaged_at else "—" }}</dd>
       <dt>Resolved</dt><dd>{{ finding.resolved_at.strftime("%Y-%m-%d") if finding.resolved_at else "—" }}</dd>
-      {% if finding.report_url %}
-      <dt>Report</dt><dd><a href="{{ finding.report_url }}" target="_blank">Link ↗</a></dd>
-      {% endif %}
-      {% if finding.temporal_workflow_id %}
-      <dt>Workflow</dt><dd><code style="font-size:11px">{{ finding.temporal_workflow_id }}</code></dd>
-      {% endif %}
+      {% if finding.report_url %}<dt>Report</dt><dd><a href="{{ finding.report_url }}" target="_blank">Link ↗</a></dd>{% endif %}
     </dl>
   </div>
 
   <div class="card">
-    <h2 style="font-size:13px; font-weight:600; margin-bottom:0.75rem;">Update Status</h2>
-    <form method="post" action="/findings/{{ finding.id }}/status" style="display: flex; gap: 0.5rem; align-items: center;">
+    <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem;">Update Status</div>
+    <form method="post" action="/findings/{{ finding.id }}/status" style="display:flex; gap:0.5rem; margin-bottom: 1rem;">
       <input type="hidden" name="api_key" value="{{ api_key }}">
       <select name="new_status" class="form-select">
         {% for s in statuses %}
@@ -39,6 +36,98 @@
       </select>
       <button type="submit" class="btn btn-primary">Update</button>
     </form>
+
+    <div style="font-size:13px; font-weight:600; margin-bottom:0.5rem;">Export Report</div>
+    <div style="display:flex; gap:0.35rem; flex-wrap: wrap;">
+      <a href="/findings/{{ finding.id }}/export?fmt=markdown&api_key={{ api_key }}" class="btn btn-sm">Markdown ↓</a>
+      <a href="/findings/{{ finding.id }}/export?fmt=hackerone&api_key={{ api_key }}" class="btn btn-sm">HackerOne ↓</a>
+      <a href="/findings/{{ finding.id }}/export?fmt=bugcrowd&api_key={{ api_key }}" class="btn btn-sm">Bugcrowd ↓</a>
+    </div>
   </div>
 </div>
+
+{# ── Report builder ──────────────────────────────────────────────────── #}
+<form method="post" action="/findings/{{ finding.id }}/report">
+  <input type="hidden" name="api_key" value="{{ api_key }}">
+
+  <div class="card" style="margin-bottom: 1rem;">
+    <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Report Builder</div>
+
+    <div style="margin-bottom: 1rem;">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Summary <span style="opacity:0.5">— 2-3 sentences: what is vulnerable, what can an attacker do, why it matters</span></label>
+      <textarea name="summary" rows="3" style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.6rem; font-size:13px; resize:vertical; box-sizing:border-box;" placeholder="The /api/v1/invoices/{id} endpoint returns invoice contents without verifying the authenticated user owns that invoice...">{{ finding.summary or "" }}</textarea>
+    </div>
+
+    <div style="margin-bottom: 1rem;">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Vulnerability Details <span style="opacity:0.5">— technical root cause: what assumption is wrong, what check is missing</span></label>
+      <textarea name="vulnerability_details" rows="4" style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.6rem; font-size:13px; resize:vertical; box-sizing:border-box;" placeholder="The endpoint accepts a user-supplied ID and queries the database directly without checking ownership...">{{ finding.vulnerability_details or "" }}</textarea>
+    </div>
+
+    <div style="margin-bottom: 1rem;">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Steps to Reproduce <span style="opacity:0.5">— numbered, exact steps; assume the triager has never used this app</span></label>
+      <textarea name="steps_to_reproduce" rows="6" style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.6rem; font-size:13px; font-family:monospace; resize:vertical; box-sizing:border-box;" placeholder="1. Create two accounts: attacker@test.com and victim@test.com&#10;2. Log in as victim, create an invoice. Note the ID.&#10;3. Log in as attacker.&#10;4. Send GET /api/v1/invoices/{victim_id} with attacker token.&#10;5. Observe victim's invoice is returned.">{{ finding.steps_to_reproduce or "" }}</textarea>
+    </div>
+
+    <div style="margin-bottom: 1rem;">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Impact <span style="opacity:0.5">— who is affected, what is exposed, exploitable at scale?</span></label>
+      <textarea name="impact" rows="3" style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.6rem; font-size:13px; resize:vertical; box-sizing:border-box;" placeholder="Any authenticated user can read invoices belonging to any other user by incrementing the ID...">{{ finding.impact or "" }}</textarea>
+    </div>
+
+    <div style="margin-bottom: 1rem;">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Recommended Fix <span style="opacity:0.5">— brief and specific; shows you understand the root cause</span></label>
+      <textarea name="recommended_fix" rows="2" style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.6rem; font-size:13px; resize:vertical; box-sizing:border-box;" placeholder="Verify that the authenticated user's ID matches the invoice owner_id before returning data...">{{ finding.recommended_fix or "" }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save Report</button>
+  </div>
+</form>
+
+{# ── Outcome feedback ────────────────────────────────────────────────── #}
+<div class="card" style="margin-bottom: 1rem;">
+  <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Record Outcome</div>
+
+  {% if outcomes %}
+  <div style="margin-bottom: 1rem;">
+    {% for o in outcomes %}
+    <div style="padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 13px;">
+      <span class="badge badge-{{ o.result }}">{{ o.result }}</span>
+      {% if o.payout_amount %}&nbsp; <strong style="color: var(--accent)">${{ o.payout_amount }}</strong>{% endif %}
+      {% if o.time_spent_hours %}&nbsp; · {{ o.time_spent_hours }}h spent{% endif %}
+      {% if o.lessons %}<div style="margin-top:0.3rem; color:var(--text-muted); font-size:12px;">{{ o.lessons }}</div>{% endif %}
+      <div style="color:var(--text-muted); font-size:11px; margin-top:0.2rem;">{{ o.recorded_at.strftime("%Y-%m-%d %H:%M") if o.recorded_at else "" }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/findings/{{ finding.id }}/outcome">
+    <input type="hidden" name="api_key" value="{{ api_key }}">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
+      <div>
+        <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Result</label>
+        <select name="result" class="form-select" style="width:100%;">
+          {% for r in outcome_results %}
+          <option value="{{ r }}">{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Payout ($)</label>
+        <input type="number" name="payout_amount" step="0.01" min="0" placeholder="0.00"
+          style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.5rem; font-size:13px; box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Time spent (hours)</label>
+        <input type="number" name="time_spent_hours" step="0.5" min="0" placeholder="0"
+          style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.5rem; font-size:13px; box-sizing:border-box;">
+      </div>
+    </div>
+    <div style="margin-bottom:0.75rem;">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Lessons learned</label>
+      <textarea name="lessons" rows="2" style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.6rem; font-size:13px; resize:vertical; box-sizing:border-box;" placeholder="What would you do differently? What signal was most useful?"></textarea>
+    </div>
+    <button type="submit" class="btn">Record Outcome</button>
+  </form>
+</div>
+
 {% endblock %}

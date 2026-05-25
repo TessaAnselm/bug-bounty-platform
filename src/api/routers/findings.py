@@ -1,6 +1,6 @@
 from pathlib import Path
-from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, Form, Query
+from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 
 from src.api.auth import verify_api_key
 from src.db.session import engine
-from src.db.models import Finding, Program, FindingStatus
+from src.db.models import Finding, Program, Asset, FindingStatus, Outcome
+from src.activities.reporting.exporter import export_markdown, export_hackerone, export_bugcrowd
 
 router = APIRouter(prefix="/findings", tags=["findings"])
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -54,14 +55,79 @@ async def finding_detail(finding_id: str, request: Request, api_key: str = Depen
         if not finding:
             return HTMLResponse("Finding not found", status_code=404)
         program = session.get(Program, str(finding.program_id))
+        outcomes = session.execute(
+            select(Outcome).where(Outcome.finding_id == finding_id)
+            .order_by(Outcome.recorded_at.desc())
+        ).scalars().all()
 
     return templates.TemplateResponse("findings/detail.html", {
         "request": request,
         "api_key": api_key,
         "finding": finding,
         "program": program,
+        "outcomes": outcomes,
         "statuses": [s for s, _ in PIPELINE_COLUMNS],
+        "outcome_results": ["accepted", "duplicate", "informative", "not_applicable", "paid"],
     })
+
+
+@router.post("/{finding_id}/report")
+async def update_report(
+    finding_id: str,
+    request: Request,
+    summary: str = Form(""),
+    vulnerability_details: str = Form(""),
+    steps_to_reproduce: str = Form(""),
+    impact: str = Form(""),
+    recommended_fix: str = Form(""),
+    api_key: str = Depends(verify_api_key),
+):
+    with Session(engine) as session:
+        finding = session.get(Finding, finding_id)
+        if not finding:
+            return HTMLResponse("Finding not found", status_code=404)
+        finding.summary = summary.strip() or None
+        finding.vulnerability_details = vulnerability_details.strip() or None
+        finding.steps_to_reproduce = steps_to_reproduce.strip() or None
+        finding.impact = impact.strip() or None
+        finding.recommended_fix = recommended_fix.strip() or None
+        session.commit()
+    return RedirectResponse(url=f"/findings/{finding_id}?api_key={api_key}", status_code=303)
+
+
+@router.post("/{finding_id}/outcome")
+async def record_outcome(
+    finding_id: str,
+    request: Request,
+    result: str = Form(...),
+    payout_amount: str = Form(""),
+    time_spent_hours: str = Form(""),
+    lessons: str = Form(""),
+    api_key: str = Depends(verify_api_key),
+):
+    with Session(engine) as session:
+        finding = session.get(Finding, finding_id)
+        if not finding:
+            return HTMLResponse("Finding not found", status_code=404)
+
+        outcome = Outcome(
+            finding_id=finding_id,
+            result=result,
+            payout_amount=float(payout_amount) if payout_amount.strip() else None,
+            time_spent_hours=float(time_spent_hours) if time_spent_hours.strip() else None,
+            lessons=lessons.strip() or None,
+        )
+        session.add(outcome)
+
+        # Mirror payout to finding if paid
+        if result == "paid" and payout_amount.strip():
+            finding.payout_amount = float(payout_amount)
+            finding.status = FindingStatus.paid
+            finding.paid_at = datetime.now(timezone.utc)
+
+        session.commit()
+
+    return RedirectResponse(url=f"/findings/{finding_id}?api_key={api_key}", status_code=303)
 
 
 @router.post("/{finding_id}/status")
@@ -98,3 +164,31 @@ async def update_finding_status(
             pass
 
     return RedirectResponse(url=f"/findings?api_key={api_key}", status_code=303)
+
+
+@router.get("/{finding_id}/export", response_class=PlainTextResponse)
+async def export_finding(
+    finding_id: str,
+    request: Request,
+    fmt: str = Query("markdown", regex="^(markdown|hackerone|bugcrowd)$"),
+    api_key: str = Depends(verify_api_key),
+):
+    with Session(engine) as session:
+        finding = session.get(Finding, finding_id)
+        if not finding:
+            return PlainTextResponse("Finding not found", status_code=404)
+        program = session.get(Program, str(finding.program_id))
+        asset = session.get(Asset, str(finding.asset_id)) if finding.asset_id else None
+
+    exporters = {
+        "markdown": export_markdown,
+        "hackerone": export_hackerone,
+        "bugcrowd": export_bugcrowd,
+    }
+    content = exporters[fmt](finding, program, asset)
+    filename = f"{finding.title[:40].replace(' ', '_').lower()}_{fmt}.md"
+
+    return PlainTextResponse(
+        content,
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
