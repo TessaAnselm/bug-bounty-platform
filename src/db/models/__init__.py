@@ -7,6 +7,7 @@ from src.db.models.session_note import SessionNote
 from src.db.models.outcome import Outcome
 from src.db.models.program_score import ProgramScore
 from src.db.models.artifact import Artifact
+from src.db.models.hunt_session import HuntSession, HuntStatus
 
 __all__ = [
     "Program", "ProgramStatus",
@@ -18,4 +19,5 @@ __all__ = [
     "Outcome",
     "ProgramScore",
     "Artifact",
+    "HuntSession", "HuntStatus",
 ]
