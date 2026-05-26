@@ -23,6 +23,7 @@ class Program(Base):
     out_of_scope = Column(JSONB, nullable=False, default=list)
     max_payout = Column(Integer, nullable=True)
     status = Column(Enum(ProgramStatus), nullable=False, default=ProgramStatus.active)
+    constraints = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     assets = relationship("Asset", back_populates="program")
