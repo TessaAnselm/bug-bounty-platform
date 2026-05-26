@@ -50,6 +50,7 @@ from sqlalchemy import select
 from src.db.session import engine
 from src.db.models import Program, Asset, Alert, AssetType, AssetStatus
 from src.activities.storage.scope import validate_target
+from src.activities.scoring.risk import calculate_risk_score, auto_tag
 
 
 # ── Format detection ──────────────────────────────────────────────────────
@@ -209,13 +210,20 @@ def _upsert_asset(session: Session, program: Program, item: dict, dry_run: bool)
 
     now = datetime.now(timezone.utc)
 
+    asset_type_str = item["type"].value if hasattr(item["type"], "value") else str(item["type"])
+    techs = item["technologies"] or []
+    risk = calculate_risk_score(item["value"], asset_type_str, item["http_status"], techs)
+    tags = auto_tag(item["value"], asset_type_str, techs)
+
     if existing:
         existing.last_seen = now
         existing.is_new = False
         if item["http_status"]:
             existing.http_status = item["http_status"]
-        if item["technologies"]:
-            existing.technologies = item["technologies"]
+        if techs:
+            existing.technologies = techs
+        existing.risk_score = risk
+        existing.tags = tags
         return "updated"
 
     asset = Asset(
@@ -224,9 +232,11 @@ def _upsert_asset(session: Session, program: Program, item: dict, dry_run: bool)
         value=item["value"],
         status=AssetStatus.active,
         http_status=item["http_status"],
-        technologies=item["technologies"] or [],
+        technologies=techs,
         ports=[],
         is_new=True,
+        risk_score=risk,
+        tags=tags,
         first_seen=now,
         last_seen=now,
     )
