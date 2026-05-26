@@ -53,3 +53,12 @@ ignore:
           The api_key is SHA-256 hash-validated before any redirect occurs.
         expires: '2027-01-01T00:00:00.000Z'
         created: '2026-05-25T00:00:00.000Z'
+
+  2a40790e-a6a0-4d77-adf2-32b6a8a973eb:
+    - 'src/api/routers/programs.py':
+        reason: >
+          False positive. The redirect URL is hardcoded as /programs/{id}?api_key=...
+          It always starts with /programs/, so external redirection is impossible.
+          The api_key is SHA-256 hash-validated before any redirect occurs.
+        expires: '2027-01-01T00:00:00.000Z'
+        created: '2026-05-26T00:00:00.000Z'
