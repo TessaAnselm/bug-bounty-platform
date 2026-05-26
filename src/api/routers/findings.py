@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import quote
 from fastapi import APIRouter, Request, Depends, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
@@ -92,7 +93,8 @@ async def update_report(
         finding.impact = impact.strip() or None
         finding.recommended_fix = recommended_fix.strip() or None
         session.commit()
-    return RedirectResponse(url=f"/findings/{finding_id}?api_key={api_key}", status_code=303)
+        safe_id = str(finding.id)
+    return RedirectResponse(url=f"/findings/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
 
 
 @router.post("/{finding_id}/outcome")
@@ -110,24 +112,34 @@ async def record_outcome(
         if not finding:
             return HTMLResponse("Finding not found", status_code=404)
 
+        try:
+            payout_float = float(payout_amount) if payout_amount.strip() else None
+        except ValueError:
+            payout_float = None
+        try:
+            hours_float = float(time_spent_hours) if time_spent_hours.strip() else None
+        except ValueError:
+            hours_float = None
+
         outcome = Outcome(
             finding_id=finding_id,
             result=result,
-            payout_amount=float(payout_amount) if payout_amount.strip() else None,
-            time_spent_hours=float(time_spent_hours) if time_spent_hours.strip() else None,
+            payout_amount=payout_float,
+            time_spent_hours=hours_float,
             lessons=lessons.strip() or None,
         )
         session.add(outcome)
 
         # Mirror payout to finding if paid
-        if result == "paid" and payout_amount.strip():
-            finding.payout_amount = float(payout_amount)
+        if result == "paid" and payout_float is not None:
+            finding.payout_amount = payout_float
             finding.status = FindingStatus.paid
             finding.paid_at = datetime.now(timezone.utc)
 
         session.commit()
+        safe_id = str(finding.id)
 
-    return RedirectResponse(url=f"/findings/{finding_id}?api_key={api_key}", status_code=303)
+    return RedirectResponse(url=f"/findings/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
 
 
 @router.post("/{finding_id}/status")
@@ -137,12 +149,17 @@ async def update_finding_status(
     new_status: str = Form(...),
     api_key: str = Depends(verify_api_key),
 ):
+    try:
+        status = FindingStatus[new_status]
+    except KeyError:
+        return HTMLResponse("Invalid status", status_code=400)
+
     with Session(engine) as session:
         finding = session.get(Finding, finding_id)
         if not finding:
             return HTMLResponse("Finding not found", status_code=404)
 
-        finding.status = FindingStatus[new_status]
+        finding.status = status
         now = datetime.now(timezone.utc)
         if new_status == "submitted":
             finding.submitted_at = now
@@ -163,7 +180,7 @@ async def update_finding_status(
         except Exception:
             pass
 
-    return RedirectResponse(url=f"/findings?api_key={api_key}", status_code=303)
+    return RedirectResponse(url=f"/findings?api_key={quote(api_key, safe='')}", status_code=303)
 
 
 @router.get("/{finding_id}/export", response_class=PlainTextResponse)

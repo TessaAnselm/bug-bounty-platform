@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime, timezone
+from urllib.parse import quote
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -27,10 +28,6 @@ async def hunt_list(request: Request, api_key: str = Depends(verify_api_key)):
         for s in sessions:
             asset = session.get(Asset, s.asset_id)
             program = session.get(Program, s.program_id)
-            total_items = sum(
-                len(cl["sections"]) for cl in
-                load_checklists_for_session(s.checklists_used or [], s.checklist_progress or {})
-            )
             enriched.append({"session": s, "asset": asset, "program": program})
 
     return templates.TemplateResponse("hunt/index.html", {
@@ -71,7 +68,7 @@ async def start_session(
         session.refresh(hunt)
         hunt_id = str(hunt.id)
 
-    return RedirectResponse(url=f"/hunt/{hunt_id}?api_key={api_key}", status_code=303)
+    return RedirectResponse(url=f"/hunt/{hunt_id}?api_key={quote(api_key, safe='')}", status_code=303)
 
 
 @router.get("/{session_id}", response_class=HTMLResponse)
@@ -114,10 +111,12 @@ async def update_notes(
 ):
     with Session(engine) as session:
         hunt = session.get(HuntSession, session_id)
-        if hunt:
-            hunt.notes = notes
-            session.commit()
-    return RedirectResponse(url=f"/hunt/{session_id}?api_key={api_key}", status_code=303)
+        if not hunt:
+            return HTMLResponse("Session not found", status_code=404)
+        hunt.notes = notes
+        session.commit()
+        safe_id = str(hunt.id)
+    return RedirectResponse(url=f"/hunt/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
 
 
 @router.post("/{session_id}/checklist")
@@ -153,8 +152,9 @@ async def save_checklist(
 
         hunt.checklist_progress = progress
         session.commit()
+        safe_id = str(hunt.id)
 
-    return RedirectResponse(url=f"/hunt/{session_id}?api_key={api_key}", status_code=303)
+    return RedirectResponse(url=f"/hunt/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
 
 
 @router.post("/{session_id}/status")
@@ -164,11 +164,18 @@ async def update_status(
     new_status: str = Form(...),
     api_key: str = Depends(verify_api_key),
 ):
+    try:
+        status = HuntStatus[new_status]
+    except KeyError:
+        return HTMLResponse("Invalid status", status_code=400)
+
     with Session(engine) as session:
         hunt = session.get(HuntSession, session_id)
-        if hunt:
-            hunt.status = HuntStatus[new_status]
-            if new_status in ("completed", "abandoned"):
-                hunt.ended_at = datetime.now(timezone.utc)
-            session.commit()
-    return RedirectResponse(url=f"/hunt/{session_id}?api_key={api_key}", status_code=303)
+        if not hunt:
+            return HTMLResponse("Session not found", status_code=404)
+        hunt.status = status
+        if new_status in ("completed", "abandoned"):
+            hunt.ended_at = datetime.now(timezone.utc)
+        session.commit()
+        safe_id = str(hunt.id)
+    return RedirectResponse(url=f"/hunt/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
