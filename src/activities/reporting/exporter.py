@@ -20,6 +20,7 @@ def export_markdown(finding, program, asset) -> str:
     asset_value = asset.value if asset else "Unknown"
     severity = finding.severity.value.upper() if finding.severity else "UNKNOWN"
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    conf = f"{int(float(finding.confidence_score) * 100)}%" if finding.confidence_score else "unset"
 
     return f"""# {finding.title}
 
@@ -27,7 +28,7 @@ def export_markdown(finding, program, asset) -> str:
 **Asset:** {asset_value}
 **Severity:** {severity}
 **Vuln Type:** {finding.vuln_type}
-**Confidence:** {int(float(finding.confidence_score) * 100)}% {f"(${finding.payout_amount})" if finding.payout_amount else ""}
+**Confidence:** {conf} {f"(${finding.payout_amount})" if finding.payout_amount else ""}
 **Date:** {now}
 
 ---
