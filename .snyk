@@ -1,0 +1,55 @@
+version: v1.25.0
+ignore:
+  2cfdec63-93f4-4813-aeab-8d323117b5b0:
+    - 'src/api/routers/findings.py':
+        reason: >
+          False positive. The redirect URL is hardcoded as /findings/{id}?api_key=...
+          It always starts with /findings/, so external redirection is impossible.
+          The api_key is SHA-256 hash-validated before any redirect occurs.
+        expires: '2027-01-01T00:00:00.000Z'
+        created: '2026-05-25T00:00:00.000Z'
+
+  284579e1-9030-44d1-88df-597928a0b377:
+    - 'src/api/routers/findings.py':
+        reason: >
+          False positive. The redirect URL is hardcoded as /findings/{id}?api_key=...
+          It always starts with /findings/, so external redirection is impossible.
+          The api_key is SHA-256 hash-validated before any redirect occurs.
+        expires: '2027-01-01T00:00:00.000Z'
+        created: '2026-05-25T00:00:00.000Z'
+
+  62cb89e3-a430-4112-aead-3e3c73b7af4e:
+    - 'src/api/routers/hunt.py':
+        reason: >
+          False positive. The redirect URL is hardcoded as /hunt/{id}?api_key=...
+          It always starts with /hunt/, so external redirection is impossible.
+          The api_key is SHA-256 hash-validated before any redirect occurs.
+        expires: '2027-01-01T00:00:00.000Z'
+        created: '2026-05-25T00:00:00.000Z'
+
+  a138e541-9690-4424-bdba-0568acd9cf62:
+    - 'src/api/routers/hunt.py':
+        reason: >
+          False positive. The redirect URL is hardcoded as /hunt/{id}?api_key=...
+          It always starts with /hunt/, so external redirection is impossible.
+          The api_key is SHA-256 hash-validated before any redirect occurs.
+        expires: '2027-01-01T00:00:00.000Z'
+        created: '2026-05-25T00:00:00.000Z'
+
+  bd0ee06e-f1f8-46e2-b270-ad06987b65af:
+    - 'src/api/routers/hunt.py':
+        reason: >
+          False positive. The redirect URL is hardcoded as /hunt/{id}?api_key=...
+          It always starts with /hunt/, so external redirection is impossible.
+          The api_key is SHA-256 hash-validated before any redirect occurs.
+        expires: '2027-01-01T00:00:00.000Z'
+        created: '2026-05-25T00:00:00.000Z'
+
+  35ab7754-e19c-476a-b406-287f18f80a17:
+    - 'src/api/routers/hunt.py':
+        reason: >
+          False positive. The redirect URL is hardcoded as /hunt/{id}?api_key=...
+          It always starts with /hunt/, so external redirection is impossible.
+          The api_key is SHA-256 hash-validated before any redirect occurs.
+        expires: '2027-01-01T00:00:00.000Z'
+        created: '2026-05-25T00:00:00.000Z'
