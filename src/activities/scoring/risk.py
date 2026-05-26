@@ -16,7 +16,7 @@ _HIGH_VALUE_KEYWORDS = [
     "auth", "login", "signin", "sso", "oauth", "saml",
     "upload", "file", "files", "media", "cdn",
     "billing", "payment", "pay", "checkout", "invoice",
-    "secret", "config", "config", "vault", "key", "token",
+    "secret", "config", "vault", "key", "token",
     "backup", "bak", "old", "legacy", "archive",
     "debug", "test", "testing", "demo",
     "vpn", "gateway", "proxy", "mgmt", "management",
