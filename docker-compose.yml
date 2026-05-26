@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: bountydb
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgresql_data:/var/lib/postgresql/data
     healthcheck:
@@ -28,7 +28,7 @@ services:
       POSTGRES_SEEDS: postgresql
       DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/config/dynamicconfig/development-sql.yaml
     ports:
-      - "7233:7233"
+      - "127.0.0.1:7233:7233"
     volumes:
       - ./temporal-config/dynamicconfig:/etc/temporal/config/dynamicconfig
     depends_on:
@@ -43,7 +43,7 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_CORS_ORIGINS: http://localhost:3000
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       - temporal
     restart: unless-stopped
