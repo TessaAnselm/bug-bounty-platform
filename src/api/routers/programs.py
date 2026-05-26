@@ -1,6 +1,7 @@
 from pathlib import Path
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse
+from urllib.parse import quote
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
@@ -81,4 +82,39 @@ async def program_detail(program_id: str, request: Request, api_key: str = Depen
         "program": program,
         "scores": scores,
         "recon_runs": recon_runs,
+        "constraints": program.constraints or {},
     })
+
+
+@router.post("/{program_id}/constraints")
+async def update_constraints(
+    program_id: str,
+    request: Request,
+    notes: str = Form(""),
+    rate_limit_rpm: str = Form(""),
+    allow_active_scanning: str = Form("off"),
+    allowed_tools: str = Form(""),
+    api_key: str = Depends(verify_api_key),
+):
+    with Session(engine) as session:
+        program = session.get(Program, program_id)
+        if not program:
+            return HTMLResponse("Program not found", status_code=404)
+
+        try:
+            rpm = int(rate_limit_rpm) if rate_limit_rpm.strip() else None
+        except ValueError:
+            rpm = None
+
+        tools = [t.strip() for t in allowed_tools.split(",") if t.strip()] or None
+
+        program.constraints = {
+            "notes": notes.strip() or None,
+            "rate_limit_rpm": rpm,
+            "allow_active_scanning": allow_active_scanning == "on",
+            "allowed_tools": tools,
+        }
+        session.commit()
+        safe_id = str(program.id)
+
+    return RedirectResponse(url=f"/programs/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
