@@ -93,12 +93,23 @@ Track current state here. Update this file as each step completes.
 
 ## Next Steps (Priority 4+)
 
-- [ ] More recon sources: crt.sh, GitHub Search, URLScan, SecurityTrails, Whoxy
-- [ ] Program constraints (JSONB field on programs — rate limits, tool restrictions)
-- [ ] Program discovery (bounty-targets-data integration)
+- [x] More recon sources: crt.sh, GitHub Search, URLScan (added in previous session)
+- [x] More recon sources: SecurityTrails, Whoxy
+  - `fetch_securitytrails()` — historical DNS subdomains, stored as assets
+  - `fetch_whoxy()` — reverse WHOIS pivot, printed for manual review (out-of-scope leads)
+  - Both wired into `--source` choices in fetch_osint.py
+  - Keys added to .env.example: SECURITYTRAILS_API_KEY, WHOXY_API_KEY
+  - Semgrep: 0 findings ✓
+- [x] Program constraints (JSONB field on programs — rate limits, tool restrictions)
+- [x] Program discovery (bounty-targets-data integration)
+  - `scripts/select_program.py` — CLI scorer, `--phase 1/2/3` flag, 230+ HackerOne programs
+  - `/programs/discover` dashboard view — phase filter, platform filter, ranked table
+  - `/programs/discover/onboard` POST — one-click DB onboard from ranked list
+  - Semgrep: 0 findings ✓
 - [ ] Full program scoring model (UI for 5-dimension scores)
 - [ ] HackerOne / Bugcrowd API sync
 - [ ] Artifact storage (structured screenshots, Burp exports)
+- [ ] First program onboarding (Braze evaluated: not Phase 1 fit; GitLab evaluated: too competitive)
 
 ---
 
