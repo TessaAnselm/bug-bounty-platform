@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Discover Programs — Bug Bounty{% endblock %}
+{% block content %}
+<div class="page-header">
+  <span class="page-title">Program Discovery</span>
+  {% if total_fetched %}
+  <span style="color: var(--text-muted); font-size: 13px;">
+    {{ total_fetched }} programs scored ·
+    phase {{ phase }}{% if phase == 1 %} (IDOR/API){% elif phase == 2 %} (OAuth/Auth){% elif phase == 3 %} (AI/LLM){% endif %}
+  </span>
+  {% endif %}
+</div>
+
+<form class="filters" method="get">
+  <input type="hidden" name="api_key" value="{{ api_key }}">
+
+  <label style="color: var(--text-muted); font-size: 13px; margin-right: 4px;">Phase:</label>
+  <select name="phase" onchange="this.form.submit()">
+    <option value="1" {% if phase == 1 %}selected{% endif %}>1 — IDOR / API</option>
+    <option value="2" {% if phase == 2 %}selected{% endif %}>2 — OAuth / Auth</option>
+    <option value="3" {% if phase == 3 %}selected{% endif %}>3 — AI / LLM</option>
+    <option value="0" {% if phase == 0 %}selected{% endif %}>All phases</option>
+  </select>
+
+  <select name="platform" onchange="this.form.submit()">
+    <option value="h1" {% if platform == 'h1' %}selected{% endif %}>HackerOne</option>
+    <option value="bc" {% if platform == 'bc' %}selected{% endif %}>Bugcrowd</option>
+    <option value="all" {% if platform == 'all' %}selected{% endif %}>All platforms</option>
+  </select>
+
+  <select name="top" onchange="this.form.submit()">
+    <option value="15" {% if top == 15 %}selected{% endif %}>Top 15</option>
+    <option value="25" {% if top == 25 %}selected{% endif %}>Top 25</option>
+    <option value="50" {% if top == 50 %}selected{% endif %}>Top 50</option>
+  </select>
+</form>
+
+{% if error %}
+<div class="empty">{{ error }}</div>
+{% elif ranked %}
+<table>
+  <thead>
+    <tr>
+      <th style="width:40px">#</th>
+      <th style="width:70px">Score</th>
+      <th>Program</th>
+      <th>Platform</th>
+      <th style="text-align:right; width:60px">Resp</th>
+      <th style="text-align:right; width:60px">Scope</th>
+      <th>Signals</th>
+      <th style="width:80px"></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in ranked %}
+  <tr>
+    <td style="color: var(--text-muted)">{{ loop.index }}</td>
+
+    <td>
+      {% if r.total_score >= 80 %}
+        <span class="badge badge-critical">{{ r.total_score }}</span>
+      {% elif r.total_score >= 65 %}
+        <span class="badge badge-high">{{ r.total_score }}</span>
+      {% elif r.total_score >= 50 %}
+        <span class="badge badge-medium">{{ r.total_score }}</span>
+      {% else %}
+        <span class="badge badge-info">{{ r.total_score }}</span>
+      {% endif %}
+    </td>
+
+    <td>
+      {% if r.url %}
+      <a href="{{ r.url }}" target="_blank" rel="noopener noreferrer">{{ r.name }}</a>
+      {% else %}
+      {{ r.name }}
+      {% endif %}
+      {% if r.managed %}
+      <span class="badge badge-info" style="font-size: 10px; margin-left: 4px;">managed</span>
+      {% endif %}
+    </td>
+
+    <td style="color: var(--text-muted)">{{ r.platform }}</td>
+
+    <td style="text-align:right; color: var(--text-muted)">
+      {% if r.response_days %}{{ "%.0f"|format(r.response_days) }}d{% else %}—{% endif %}
+    </td>
+
+    <td style="text-align:right; color: var(--text-muted)">{{ r.scope_count }}</td>
+
+    <td>
+      {% for sig in r.signals %}
+      <span class="tech-tag">{{ sig }}</span>
+      {% endfor %}
+    </td>
+
+    <td>
+      <form method="post" action="/programs/discover/onboard" style="display:inline">
+        <input type="hidden" name="api_key" value="{{ api_key }}">
+        <input type="hidden" name="name" value="{{ r.name | e }}">
+        <input type="hidden" name="platform" value="{{ r.platform }}">
+        <input type="hidden" name="url" value="{{ r.url | e }}">
+        <input type="hidden" name="scope_json" value="{{ r.scope_items | tojson }}">
+        <button type="submit" style="
+          background: var(--accent);
+          color: #000;
+          border: none;
+          border-radius: 4px;
+          padding: 4px 10px;
+          font-size: 12px;
+          cursor: pointer;
+          font-weight: 600;
+        ">Onboard →</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div style="margin-top: 1rem; color: var(--text-muted); font-size: 12px;">
+  Resp = avg first response days &nbsp;·&nbsp; Scope = bounty-eligible assets &nbsp;·&nbsp;
+  Data from <a href="https://github.com/arkadiyt/bounty-targets-data" target="_blank" rel="noopener noreferrer">bounty-targets-data</a> (cached 30 min)
+</div>
+
+{% else %}
+<div class="empty">No programs found. Try a different platform or phase.</div>
+{% endif %}
+{% endblock %}
