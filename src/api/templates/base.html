@@ -9,16 +9,17 @@
 <body>
 <nav>
   <span class="brand">🔍 Bug Bounty</span>
-  <a href="/programs?api_key={{ api_key }}" {% if active == 'programs' %}class="active"{% endif %}>Programs</a>
-  <a href="/programs/discover?api_key={{ api_key }}" {% if active == 'discover' %}class="active"{% endif %}>Discover</a>
-  <a href="/assets?api_key={{ api_key }}" {% if active == 'assets' %}class="active"{% endif %}>Assets</a>
-  <a href="/triage?api_key={{ api_key }}" {% if active == 'triage' %}class="active"{% endif %}>Triage</a>
-  <a href="/hunt?api_key={{ api_key }}" {% if active == 'hunt' %}class="active"{% endif %}>Hunt</a>
-  <a href="/findings?api_key={{ api_key }}" {% if active == 'findings' %}class="active"{% endif %}>Findings</a>
-  <a href="/alerts?api_key={{ api_key }}" {% if active == 'alerts' %}class="active"{% endif %}>Alerts</a>
-  <a href="/dashboard/health?api_key={{ api_key }}" {% if active == 'health' %}class="active"{% endif %}>Health</a>
+  <a href="/programs" {% if active == 'programs' %}class="active"{% endif %}>Programs</a>
+  <a href="/programs/discover" {% if active == 'discover' %}class="active"{% endif %}>Discover</a>
+  <a href="/assets" {% if active == 'assets' %}class="active"{% endif %}>Assets</a>
+  <a href="/triage" {% if active == 'triage' %}class="active"{% endif %}>Triage</a>
+  <a href="/hunt" {% if active == 'hunt' %}class="active"{% endif %}>Hunt</a>
+  <a href="/findings" {% if active == 'findings' %}class="active"{% endif %}>Findings</a>
+  <a href="/alerts" {% if active == 'alerts' %}class="active"{% endif %}>Alerts</a>
+  <a href="/dashboard/health" {% if active == 'health' %}class="active"{% endif %}>Health</a>
   <span class="spacer"></span>
   <a href="http://localhost:8080" target="_blank" class="ext-link">Temporal UI ↗</a> <!-- nosemgrep: html.security.plaintext-http-link.plaintext-http-link -->
+  <a href="/logout" style="color: var(--text-muted); font-size: 13px;">Logout</a>
 </nav>
 <div class="container">
   {% block content %}{% endblock %}
