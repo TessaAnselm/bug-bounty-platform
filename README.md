@@ -8,7 +8,8 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 
 ## Screenshots
 
-> _Screenshots will be added once the first program is onboarded._
+**Program Discovery — 230+ programs scored by phase**
+![Program Discovery](docs/screenshots/discover.png)
 
 **Program Dashboard**
 <!-- ![Program Dashboard](docs/screenshots/programs.png) -->
