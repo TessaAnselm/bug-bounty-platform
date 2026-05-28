@@ -14,6 +14,9 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 **Program Dashboard — programs with status badges, scores, and onboard/pause/archive controls**
 ![Program Dashboard](docs/screenshots/programs.png)
 
+**Program Detail — scope editor, constraints, recon history, and status controls**
+![Program Detail](docs/screenshots/program_detail.png)
+
 **Triage Queue — assets ranked by risk score**
 <!-- ![Triage Queue](docs/screenshots/triage.png) -->
 
