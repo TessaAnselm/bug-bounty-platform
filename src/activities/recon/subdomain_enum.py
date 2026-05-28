@@ -75,13 +75,13 @@ async def enumerate_subdomains(scope: list[str], out_of_scope: list[str] | None 
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=300)
             lines = [line.strip() for line in stdout.decode().splitlines() if line.strip()]
             results.extend(lines)
         except FileNotFoundError:
             activity.logger.warning(f"subfinder not found — install it with: brew install subfinder")
         except asyncio.TimeoutError:
-            activity.logger.warning(f"subfinder timed out for {domain} after 120s")
+            activity.logger.warning(f"subfinder timed out for {domain} after 300s")
 
     # Always include the root domains themselves — subfinder only returns children.
     for d in domains:
