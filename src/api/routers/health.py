@@ -49,16 +49,30 @@ async def health_view(request: Request, api_key: str = Depends(verify_api_key)):
 
         programs = {str(p.id): p for p in session.execute(select(Program)).scalars().all()}
 
+        now = datetime.now(timezone.utc)
         enriched = []
         for r in runs:
             duration = None
             if r.completed_at and r.started_at:
-                delta = r.completed_at - r.started_at
-                duration = int(delta.total_seconds())
+                duration = int((r.completed_at - r.started_at).total_seconds())
+            elif r.started_at and r.status.value == "running":
+                duration = int((now - r.started_at).total_seconds())
+
+            # Infer why a run failed so you don't have to open the worker log.
+            cause = None
+            if r.status.value == "failed":
+                if duration and duration >= 3600:
+                    cause = "Worker died — stale run"
+                elif duration and duration < 60:
+                    cause = "Failed at startup"
+                else:
+                    cause = "Activity exhausted retries"
+
             enriched.append({
                 "run": r,
                 "program": programs.get(str(r.program_id)),
                 "duration_s": duration,
+                "likely_cause": cause,
             })
 
     return templates.TemplateResponse("health/index.html", {

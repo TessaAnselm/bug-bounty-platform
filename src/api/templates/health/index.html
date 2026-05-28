@@ -10,7 +10,7 @@
 
 {% if runs %}
 <table>
-  <thead><tr><th>Program</th><th>Started</th><th>Status</th><th>Assets Found</th><th>New</th><th>Duration</th><th>Triggered By</th></tr></thead>
+  <thead><tr><th>Program</th><th>Started</th><th>Status</th><th>Assets Found</th><th>New</th><th>Duration</th><th>Triggered By</th><th>Note</th></tr></thead>
   <tbody>
   {% for item in runs %}
   {% set r = item.run %}
@@ -20,8 +20,15 @@
     <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
     <td>{{ r.assets_found }}</td>
     <td>{% if r.new_assets > 0 %}<span class="badge badge-new">+{{ r.new_assets }}</span>{% else %}0{% endif %}</td>
-    <td>{% if item.duration_s %}{{ item.duration_s }}s{% else %}—{% endif %}</td>
+    <td>
+      {% if item.duration_s %}
+        {% set d = item.duration_s %}
+        {% if d >= 60 %}{{ (d // 60) }}m {{ (d % 60) }}s{% else %}{{ d }}s{% endif %}
+        {% if r.status.value == "running" %}<span style="color:var(--text-muted);font-size:11px;"> elapsed</span>{% endif %}
+      {% else %}—{% endif %}
+    </td>
     <td><span style="color: var(--text-muted); font-size: 12px;">{{ r.triggered_by }}</span></td>
+    <td><span style="color: var(--text-muted); font-size: 12px;">{{ item.likely_cause or "" }}</span></td>
   </tr>
   {% endfor %}
   </tbody>

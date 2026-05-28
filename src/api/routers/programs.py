@@ -1,4 +1,5 @@
 import json
+import re
 import time
 from pathlib import Path
 from urllib.parse import quote
@@ -502,6 +503,28 @@ async def update_constraints(
     return RedirectResponse(url=f"/programs/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
 
 
+_SAFE_SCOPE_ENTRY = re.compile(r"^[a-zA-Z0-9.\-*/: _]+$")
+
+
+def _split_scope(text: str) -> tuple[list[str], list[str]]:
+    """Split newline-delimited scope textarea into valid and skipped entries.
+
+    Valid: domains, wildcards, URLs. Skipped: product names, descriptions,
+    anything with characters that can't be part of a domain or URL pattern.
+    Skipped entries are shown as a warning so the user knows they were ignored.
+    """
+    valid, skipped = [], []
+    for line in text.splitlines():
+        entry = line.strip()
+        if not entry:
+            continue
+        if _SAFE_SCOPE_ENTRY.match(entry):
+            valid.append(entry)
+        else:
+            skipped.append(entry)
+    return valid, skipped
+
+
 @router.post("/{program_id}/scope")
 async def update_scope(
     program_id: str,
@@ -513,16 +536,21 @@ async def update_scope(
 ):
     """Update in-scope targets, OOS exclusions, and max payout from the detail page editor.
     Scope and out_of_scope are newline-delimited in the form and stored as JSONB string arrays.
+    Entries that contain characters outside domain/URL patterns (e.g. product names like
+    'Kong Mesh') are flagged and skipped — they can't be enumerated by subfinder anyway.
     validate_target() in store_assets reads program.scope to enforce boundaries before
     any asset is written to the database.
     """
+    scope_valid, scope_skipped = _split_scope(scope)
+    oos_valid, oos_skipped = _split_scope(out_of_scope)
+
     with Session(engine) as session:
         program = session.get(Program, program_id)
         if not program:
             return HTMLResponse("Program not found", status_code=404)
 
-        program.scope = [line.strip() for line in scope.splitlines() if line.strip()]
-        program.out_of_scope = [line.strip() for line in out_of_scope.splitlines() if line.strip()]
+        program.scope = scope_valid
+        program.out_of_scope = oos_valid
         try:
             program.max_payout = int(max_payout) if max_payout.strip() else None
         except ValueError:
@@ -530,7 +558,13 @@ async def update_scope(
         session.commit()
         safe_id = str(program.id)
 
-    return RedirectResponse(url=f"/programs/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    # Pass skipped entries back as a query param so the detail page can show a warning.
+    skipped_all = scope_skipped + oos_skipped
+    warning = quote(", ".join(skipped_all), safe="") if skipped_all else ""
+    url = f"/programs/{safe_id}?api_key={quote(api_key, safe='')}"
+    if warning:
+        url += f"&scope_warning={warning}"
+    return RedirectResponse(url=url, status_code=303)
 
 
 _VALID_STATUS_TRANSITIONS = {
@@ -564,7 +598,7 @@ async def update_status(
 
         allowed = _VALID_STATUS_TRANSITIONS.get(program.status, [])
         if new_status not in allowed:
-            return HTMLResponse(f"Cannot transition from {program.status.value} to {status}", status_code=400)
+            return HTMLResponse("Invalid status transition", status_code=400)
 
         program.status = new_status
         session.commit()
