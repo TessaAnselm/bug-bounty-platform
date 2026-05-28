@@ -64,21 +64,39 @@
   {% endif %}
 </div>
 
-<div class="detail-section">
-  <h2>Scope</h2>
-  <div class="tech-list">
+<div class="card" style="margin-bottom:1rem;">
+  <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Scope</div>
+  {% if program.scope %}
+  <div class="tech-list" style="margin-bottom:1rem;">
     {% for s in program.scope %}<span class="tech-tag">{{ s }}</span>{% endfor %}
   </div>
-</div>
-
-{% if program.out_of_scope %}
-<div class="detail-section">
-  <h2>Out of Scope</h2>
-  <div class="tech-list">
-    {% for s in program.out_of_scope %}<span class="tech-tag" style="opacity:0.5">{{ s }}</span>{% endfor %}
+  {% endif %}
+  {% if program.out_of_scope %}
+  <div style="font-size:12px; color:var(--text-muted); margin-bottom:0.4rem;">Out of scope</div>
+  <div class="tech-list" style="margin-bottom:1rem;">
+    {% for s in program.out_of_scope %}<span class="tech-tag" style="opacity:0.45;">{{ s }}</span>{% endfor %}
   </div>
+  {% endif %}
+  <form method="post" action="/programs/{{ program.id }}/scope">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
+      <div>
+        <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">In scope <span style="opacity:0.5">— one per line</span></label>
+        <textarea name="scope" rows="6" style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.6rem; font-size:12px; font-family:monospace; resize:vertical; box-sizing:border-box;">{{ program.scope | join('\n') }}</textarea>
+      </div>
+      <div>
+        <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Out of scope <span style="opacity:0.5">— one per line</span></label>
+        <textarea name="out_of_scope" rows="6" style="width:100%; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.6rem; font-size:12px; font-family:monospace; resize:vertical; box-sizing:border-box;">{{ program.out_of_scope | join('\n') }}</textarea>
+      </div>
+    </div>
+    <div style="margin-bottom:0.75rem;">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Max payout ($)</label>
+      <input type="number" name="max_payout" min="0" placeholder="e.g. 10000"
+        value="{{ program.max_payout or '' }}"
+        style="width:160px; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.5rem; font-size:13px;">
+    </div>
+    <button type="submit" class="btn btn-primary">Save Scope</button>
+  </form>
 </div>
-{% endif %}
 
 <div class="detail-section">
   <h2>Links</h2>

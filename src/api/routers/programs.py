@@ -17,10 +17,13 @@ from src.db.models.program import ProgramStatus
 router = APIRouter(prefix="/programs", tags=["programs"])
 
 # ── bounty-targets-data fetch + scoring ──────────────────────────────────────
+# bounty-targets-data is a community-maintained daily snapshot of all public
+# HackerOne and Bugcrowd programs. We fetch it once and cache for 30 min so
+# the Discover page feels instant without hammering GitHub on every page load.
 
 _BTD_CACHE: dict[str, list] = {}
 _BTD_CACHE_TS: float = 0.0
-_BTD_TTL = 1800  # 30 min
+_BTD_TTL = 1800  # 30 min — fresh enough for program selection decisions
 
 _BTD_URLS = {
     "h1": "https://raw.githubusercontent.com/arkadiyt/bounty-targets-data/main/data/hackerone_data.json",
@@ -29,6 +32,11 @@ _BTD_URLS = {
 
 
 def _fetch_btd(platform: str) -> list[dict]:
+    """Fetch raw program list from bounty-targets-data, served from GitHub.
+    Results are cached in-process for 30 min to avoid hitting GitHub on every
+    Discover page load. Returns an empty list if the fetch fails — the caller
+    shows an error banner rather than crashing.
+    """
     global _BTD_CACHE_TS
     now = time.time()
     if now - _BTD_CACHE_TS > _BTD_TTL or platform not in _BTD_CACHE:
@@ -43,6 +51,11 @@ def _fetch_btd(platform: str) -> list[dict]:
 
 
 def _parse_h1(programs: list[dict]) -> list[dict]:
+    """Filter and normalize HackerOne programs from bounty-targets-data.
+    Drops programs that don't pay bounties or have closed submissions.
+    Attaches _scope_items (bounty-eligible asset identifiers) and _platform
+    so downstream scoring functions don't need to know the source format.
+    """
     results = []
     for p in programs:
         if not p.get("offers_bounties"):
@@ -61,6 +74,10 @@ def _parse_h1(programs: list[dict]) -> list[dict]:
 
 
 def _parse_bc(programs: list[dict]) -> list[dict]:
+    """Filter and normalize Bugcrowd programs from bounty-targets-data.
+    Bugcrowd's schema differs from H1 — targets can be dicts or bare strings,
+    so we normalize both forms into a flat list of asset identifiers.
+    """
     results = []
     for p in programs:
         if not p.get("max_payout") and not p.get("bounty"):
@@ -80,6 +97,11 @@ def _parse_bc(programs: list[dict]) -> list[dict]:
 
 
 def _btd_payout(program: dict) -> float:
+    """Score 0–100 for payout attractiveness (20% of total).
+    Proxy signals: managed program (faster payment pipeline) and average days
+    to bounty awarded (time-to-cash predicts whether the program is actively
+    triaging rather than sitting on reports).
+    """
     score = 40.0
     if program.get("managed_program"):
         score += 20.0
@@ -95,6 +117,11 @@ def _btd_payout(program: dict) -> float:
 
 
 def _btd_scope(scope_items: list[str]) -> float:
+    """Score 0–100 for attack surface breadth (20% of total).
+    Wildcard domains (+30) matter most — they mean subdomain enumeration and
+    asset discovery are worth doing. Asset type diversity (domain vs API vs URL)
+    adds a smaller bonus because mixed-type scope tends to have more logic bugs.
+    """
     if not scope_items:
         return 0.0
     score = min(50.0, len(scope_items) * 4.0)
@@ -115,6 +142,11 @@ def _btd_scope(scope_items: list[str]) -> float:
 
 
 def _btd_competition(program: dict, scope_count: int) -> float:
+    """Score 0–100 for how uncrowded the program is (25% of total).
+    Large scope attracts more hunters, so we penalize it. Slow initial response
+    is a counter-intuitive positive: it signals that the triage queue isn't
+    being dominated by fast-moving top hunters who sweep new reports immediately.
+    """
     score = 70.0
     if scope_count > 50:
         score -= 30.0
@@ -132,6 +164,12 @@ def _btd_competition(program: dict, scope_count: int) -> float:
 
 
 def _btd_fit(scope_items: list[str], name: str, phase: int) -> float:
+    """Score 0–100 for how well the program matches the active hunting phase (25% of total).
+    Phase 1 = IDOR/API: boosts REST, GraphQL, gRPC, auth keywords.
+    Phase 2 = OAuth/Auth: boosts OAuth, SSO, SAML, OIDC, JWT keywords.
+    Phase 3 = AI/LLM: boosts AI/LLM keywords and applies a 1.3x multiplier
+    because AI programs are rare and underexplored.
+    """
     combined = " ".join(scope_items).lower() + " " + name.lower()
     score = 50.0
     if phase == 1:
@@ -165,6 +203,11 @@ def _btd_fit(scope_items: list[str], name: str, phase: int) -> float:
 
 
 def _btd_momentum(program: dict) -> float:
+    """Score 0–100 for program health and responsiveness (10% of total).
+    Response efficiency (% of reports that get a response) is the best
+    single signal for whether the security team is actively engaged vs.
+    letting reports pile up with no feedback.
+    """
     score = 50.0
     eff = program.get("response_efficiency_percentage")
     if eff:
@@ -178,6 +221,10 @@ def _btd_momentum(program: dict) -> float:
 
 
 def _btd_signals(scope_items: list[str], name: str) -> list[str]:
+    """Return short keyword tags shown on the Discover table (AI/LLM, API, Auth, Wildcard, Cloud).
+    These are the same signals that drive fit scoring — surfacing them as tags
+    lets you quickly eyeball why a program ranked where it did.
+    """
     combined = " ".join(scope_items).lower() + " " + name.lower()
     sigs = []
     if any(kw in combined for kw in ["ai", "ml", "llm", "anthropic", "openai"]):
@@ -194,6 +241,11 @@ def _btd_signals(scope_items: list[str], name: str) -> list[str]:
 
 
 def _btd_score(program: dict, phase: int) -> dict:
+    """Combine all five dimension scores into a single ranked result dict.
+    Weights: payout 20%, scope 20%, competition 25%, fit 25%, momentum 10%.
+    Competition and fit carry the most weight because a high-paying program
+    with perfect fit is useless if it's overrun by experienced hunters.
+    """
     scope_items = program.get("_scope_items", [])
     name = program.get("name", "")
     payout = _btd_payout(program)
@@ -227,6 +279,11 @@ async def program_list(
     show_archived: bool = False,
     api_key: str = Depends(verify_api_key),
 ):
+    """Main program dashboard — shows all active and paused programs with scores.
+    Archived programs are hidden by default (?show_archived=true to include them).
+    Each card is enriched with the latest score, most recent recon run, and
+    unseen alert count so you can see program health at a glance.
+    """
     with Session(engine) as session:
         q = select(Program).order_by(Program.created_at.desc())
         if not show_archived:
@@ -279,6 +336,11 @@ def discover_programs(
     top: int = 25,
     api_key: str = Depends(verify_api_key),
 ):
+    """Program discovery page — fetches and scores 230+ programs from bounty-targets-data.
+    Filtered and ranked by the 5-dimension scoring model tuned to the selected phase.
+    Results are limited to `top` (5–100) and cached for 30 min so repeated page
+    loads don't re-fetch from GitHub every time.
+    """
     platforms = ["h1", "bc"] if platform == "all" else [platform if platform in _BTD_URLS else "h1"]
     all_programs: list[dict] = []
     error = None
@@ -318,10 +380,15 @@ def onboard_from_discover(
     request: Request,
     name: str = Form(...),
     platform: str = Form(...),
-    url: str = Form(""),
+    url: str = Form(""),  # accepted from the discover form but not stored — Program model has no url column
     scope_json: str = Form("[]"),
     api_key: str = Depends(verify_api_key),
 ):
+    """Create a new program from the Discover page with a single click.
+    Deduplicates by name — clicking Onboard twice redirects to the existing record
+    rather than creating a duplicate. Scope comes from bounty-targets-data as a
+    JSON-encoded list; the detail page scope editor can refine it afterwards.
+    """
     try:
         scope_items = json.loads(scope_json)
         if not isinstance(scope_items, list):
@@ -360,6 +427,11 @@ def onboard_from_discover(
 
 @router.get("/{program_id}", response_class=HTMLResponse)
 async def program_detail(program_id: str, request: Request, api_key: str = Depends(verify_api_key)):
+    """Program detail page — scope, scores, constraints, recon history, and status controls.
+    Loads the 5 most recent scores (for trend visibility) and the 10 most recent
+    recon runs. Constraints and scope are rendered as editable forms so everything
+    about the program can be managed from this single page.
+    """
     with Session(engine) as session:
         program = session.get(Program, program_id)
         if not program:
@@ -400,6 +472,12 @@ async def update_constraints(
     allowed_tools: str = Form(""),
     api_key: str = Depends(verify_api_key),
 ):
+    """Save program constraints — rate limit, active scanning gate, allowed tools, notes.
+    Constraints are stored as JSONB and read by ReconWorkflow before any scan starts.
+    allow_active_scanning=False means only passive recon runs (subfinder, gau, crt.sh).
+    Notes are free-text: use them for program-specific rules like 'no automated scanning
+    on *.api.example.com' or hard OOS lines not captured in out_of_scope.
+    """
     with Session(engine) as session:
         program = session.get(Program, program_id)
         if not program:
@@ -424,6 +502,37 @@ async def update_constraints(
     return RedirectResponse(url=f"/programs/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
 
 
+@router.post("/{program_id}/scope")
+async def update_scope(
+    program_id: str,
+    request: Request,
+    scope: str = Form(""),
+    out_of_scope: str = Form(""),
+    max_payout: str = Form(""),
+    api_key: str = Depends(verify_api_key),
+):
+    """Update in-scope targets, OOS exclusions, and max payout from the detail page editor.
+    Scope and out_of_scope are newline-delimited in the form and stored as JSONB string arrays.
+    validate_target() in store_assets reads program.scope to enforce boundaries before
+    any asset is written to the database.
+    """
+    with Session(engine) as session:
+        program = session.get(Program, program_id)
+        if not program:
+            return HTMLResponse("Program not found", status_code=404)
+
+        program.scope = [line.strip() for line in scope.splitlines() if line.strip()]
+        program.out_of_scope = [line.strip() for line in out_of_scope.splitlines() if line.strip()]
+        try:
+            program.max_payout = int(max_payout) if max_payout.strip() else None
+        except ValueError:
+            program.max_payout = None
+        session.commit()
+        safe_id = str(program.id)
+
+    return RedirectResponse(url=f"/programs/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+
+
 _VALID_STATUS_TRANSITIONS = {
     ProgramStatus.active: [ProgramStatus.paused, ProgramStatus.archived],
     ProgramStatus.paused: [ProgramStatus.active, ProgramStatus.archived],
@@ -438,6 +547,11 @@ async def update_status(
     status: str = Form(...),
     api_key: str = Depends(verify_api_key),
 ):
+    """Transition a program between active, paused, and archived states.
+    Valid transitions are enforced by _VALID_STATUS_TRANSITIONS — you can't jump
+    directly from archived to paused, for example. ReconWorkflow checks program.status
+    before running and refuses to scan anything that isn't active.
+    """
     with Session(engine) as session:
         program = session.get(Program, program_id)
         if not program:
