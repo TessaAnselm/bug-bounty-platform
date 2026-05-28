@@ -3,6 +3,13 @@
 {% block content %}
 <div class="page-header">
   <span class="page-title">Programs</span>
+  <span>
+    {% if show_archived %}
+    <a href="/programs" class="btn" style="font-size:12px; padding:0.3rem 0.7rem;">Hide archived</a>
+    {% else %}
+    <a href="/programs?show_archived=true" class="btn" style="font-size:12px; padding:0.3rem 0.7rem; color:var(--text-muted);">Show archived</a>
+    {% endif %}
+  </span>
 </div>
 
 {% if programs %}
@@ -11,7 +18,7 @@
   {% set p = item.program %}
   {% set s = item.score %}
   <div class="program-card">
-    <div class="name"><a href="/programs/{{ p.id }}?api_key={{ api_key }}">{{ p.name }}</a></div>
+    <div class="name"><a href="/programs/{{ p.id }}">{{ p.name }}</a></div>
     <div class="meta">
       {{ p.platform }}
       &nbsp;·&nbsp;

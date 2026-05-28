@@ -3,9 +3,40 @@
 {% block content %}
 <div class="page-header">
   <span class="page-title">
-    <a href="/programs?api_key={{ api_key }}">Programs</a> / {{ program.name }}
+    <a href="/programs">Programs</a> / {{ program.name }}
   </span>
-  <span class="badge badge-{{ program.status.value }}">{{ program.status.value }}</span>
+  <span style="display:flex; align-items:center; gap:0.75rem;">
+    <span class="badge badge-{{ program.status.value }}">{{ program.status.value }}</span>
+
+    {% if program.status.value == "active" %}
+    <form method="post" action="/programs/{{ program.id }}/status" style="display:inline">
+      <input type="hidden" name="status" value="paused">
+      <button type="submit" class="btn" style="font-size:12px; padding:0.3rem 0.7rem;">Pause</button>
+    </form>
+    <form method="post" action="/programs/{{ program.id }}/status" style="display:inline"
+          onsubmit="return confirm('Archive {{ program.name }}? You can reactivate it later.')">
+      <input type="hidden" name="status" value="archived">
+      <button type="submit" class="btn" style="font-size:12px; padding:0.3rem 0.7rem; color:var(--text-muted);">Archive</button>
+    </form>
+
+    {% elif program.status.value == "paused" %}
+    <form method="post" action="/programs/{{ program.id }}/status" style="display:inline">
+      <input type="hidden" name="status" value="active">
+      <button type="submit" class="btn btn-primary" style="font-size:12px; padding:0.3rem 0.7rem;">Reactivate</button>
+    </form>
+    <form method="post" action="/programs/{{ program.id }}/status" style="display:inline"
+          onsubmit="return confirm('Archive {{ program.name }}? You can reactivate it later.')">
+      <input type="hidden" name="status" value="archived">
+      <button type="submit" class="btn" style="font-size:12px; padding:0.3rem 0.7rem; color:var(--text-muted);">Archive</button>
+    </form>
+
+    {% elif program.status.value == "archived" %}
+    <form method="post" action="/programs/{{ program.id }}/status" style="display:inline">
+      <input type="hidden" name="status" value="active">
+      <button type="submit" class="btn btn-primary" style="font-size:12px; padding:0.3rem 0.7rem;">Reactivate</button>
+    </form>
+    {% endif %}
+  </span>
 </div>
 
 <div class="detail-grid">

@@ -222,9 +222,16 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templa
 
 
 @router.get("", response_class=HTMLResponse)
-async def program_list(request: Request, api_key: str = Depends(verify_api_key)):
+async def program_list(
+    request: Request,
+    show_archived: bool = False,
+    api_key: str = Depends(verify_api_key),
+):
     with Session(engine) as session:
-        programs = session.execute(select(Program).order_by(Program.created_at.desc())).scalars().all()
+        q = select(Program).order_by(Program.created_at.desc())
+        if not show_archived:
+            q = q.where(Program.status != ProgramStatus.archived)
+        programs = session.execute(q).scalars().all()
 
         enriched = []
         for p in programs:
@@ -259,6 +266,8 @@ async def program_list(request: Request, api_key: str = Depends(verify_api_key))
         "request": request,
         "api_key": api_key,
         "programs": enriched,
+        "show_archived": show_archived,
+        "active": "programs",
     })
 
 
@@ -377,6 +386,7 @@ async def program_detail(program_id: str, request: Request, api_key: str = Depen
         "scores": scores,
         "recon_runs": recon_runs,
         "constraints": program.constraints or {},
+        "active": "programs",
     })
 
 
@@ -408,6 +418,41 @@ async def update_constraints(
             "allow_active_scanning": allow_active_scanning == "on",
             "allowed_tools": tools,
         }
+        session.commit()
+        safe_id = str(program.id)
+
+    return RedirectResponse(url=f"/programs/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+
+
+_VALID_STATUS_TRANSITIONS = {
+    ProgramStatus.active: [ProgramStatus.paused, ProgramStatus.archived],
+    ProgramStatus.paused: [ProgramStatus.active, ProgramStatus.archived],
+    ProgramStatus.archived: [ProgramStatus.active],
+}
+
+
+@router.post("/{program_id}/status")
+async def update_status(
+    program_id: str,
+    request: Request,
+    status: str = Form(...),
+    api_key: str = Depends(verify_api_key),
+):
+    with Session(engine) as session:
+        program = session.get(Program, program_id)
+        if not program:
+            return HTMLResponse("Program not found", status_code=404)
+
+        try:
+            new_status = ProgramStatus(status)
+        except ValueError:
+            return HTMLResponse("Invalid status", status_code=400)
+
+        allowed = _VALID_STATUS_TRANSITIONS.get(program.status, [])
+        if new_status not in allowed:
+            return HTMLResponse(f"Cannot transition from {program.status.value} to {status}", status_code=400)
+
+        program.status = new_status
         session.commit()
         safe_id = str(program.id)
 
