@@ -29,7 +29,8 @@ async def crawl_js_files(urls: list[str]) -> list[str]:
         )
         input_data = "\n".join(urls).encode()
         stdout, _ = await asyncio.wait_for(proc.communicate(input_data), timeout=300)
-        return [l.strip() for l in stdout.decode().splitlines() if l.strip()]
+        lines = [l.strip() for l in stdout.decode().splitlines() if l.strip()]
+        return lines[:2000]  # cap to stay within Temporal's 2MB payload limit
     except (FileNotFoundError, asyncio.TimeoutError) as e:
         activity.logger.warning(f"katana failed: {e}")
         return []

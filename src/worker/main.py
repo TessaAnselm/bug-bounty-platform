@@ -14,6 +14,7 @@ from src.activities.storage.store_assets import (
     create_recon_run,
     store_assets,
     complete_recon_run,
+    fail_recon_run,
 )
 from src.activities.storage.diff_assets import diff_assets
 from src.activities.storage.programs import (
@@ -56,6 +57,7 @@ async def main() -> None:
             create_recon_run,
             store_assets,
             complete_recon_run,
+            fail_recon_run,
             diff_assets,
             store_program,
             create_finding,

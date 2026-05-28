@@ -27,4 +27,7 @@ async def collect_hist_urls(domains: list[str]) -> list[str]:
         except (FileNotFoundError, asyncio.TimeoutError) as e:
             activity.logger.warning(f"gau failed for {domain}: {e}")
 
-    return results
+    # Temporal has a ~2MB payload limit per activity result. gau can return
+    # tens of thousands of URLs for large domains and will blow past this.
+    # Cap at 2000 — enough for analysis, safe for Temporal serialization.
+    return results[:2000]
