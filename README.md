@@ -11,7 +11,7 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 **Program Discovery — 230+ programs scored by phase**
 ![Program Discovery](docs/screenshots/discover.png)
 
-**Program Dashboard**
+**Program Dashboard — programs with status badges, scores, and onboard/pause/archive controls**
 ![Program Dashboard](docs/screenshots/programs.png)
 
 **Triage Queue — assets ranked by risk score**
@@ -49,11 +49,13 @@ See [PROGRESS.md](PROGRESS.md) for full build history.
 ## How It Works
 
 ```
-Program Intake      → store program, scope, constraints
+Program Intake      → discover from 230+ scored programs, onboard with one click
+      ↓
+Program Lifecycle   → active (hunting) → paused (on hold) → archived (done)
       ↓
 Scope Guard         → validate_target() blocks out-of-scope before any storage
       ↓
-Passive Recon       → subfinder, gau, crt.sh (coming), GitHub Search (coming)
+Passive Recon       → subfinder, gau, crt.sh, GitHub Search, SecurityTrails, Whoxy
       ↓
 Active Recon        → httpx, katana, gowitness, nuclei (scope-confirmed only)
       ↓
@@ -128,7 +130,7 @@ bash scripts/start.sh mypassword
 bash scripts/stop.sh
 ```
 
-Dashboard: `http://localhost:8000?api_key=YOUR_KEY`
+Dashboard: `http://localhost:8000` (login once — 7-day cookie)
 Temporal UI: `http://localhost:8080`
 
 ---
@@ -164,7 +166,8 @@ src/
     scoring/        risk_score calculator, auto-tagger
     notifications/  Discord webhook alerts
   api/
-    routers/        programs, assets, triage, findings, alerts, notes, health
+    routers/        programs (discover, onboard, status), assets, triage, hunt,
+                    findings, alerts, notes, health
     templates/      Jinja2 HTML templates
     static/         Dark terminal CSS
   mcp/              Read-only MCP server for Claude Code
@@ -173,10 +176,11 @@ src/
     session.py      Database connection
 
 scripts/
-  start.sh          Start Docker, worker, dashboard (generates API key)
+  start.sh          Start Docker, worker, dashboard (generates API key on first run)
   stop.sh           Stop worker and dashboard
   import_recon.py   Import recon output from external tools
-  select_program.py Score and rank bug bounty programs
+  select_program.py Score and rank bug bounty programs from bounty-targets-data
+  fetch_osint.py    Passive OSINT — crt.sh, URLScan, GitHub, SecurityTrails, Whoxy
 
 specializations/
   idor-api/         Phase 1 — IDOR + API security playbook (active)

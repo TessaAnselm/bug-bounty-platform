@@ -47,8 +47,11 @@ Bug Bounty Project/
 │   └── ci.yml              ← The 4 security checks (gitleaks, Snyk, Semgrep, pytest)
 │
 ├── scripts/                ← Shortcuts to run the platform
-│   ├── start.sh            ← One command to start everything
-│   └── stop.sh             ← One command to stop worker and dashboard
+│   ├── start.sh            ← One command to start everything (preserves API key across restarts)
+│   ├── stop.sh             ← One command to stop worker and dashboard
+│   ├── select_program.py   ← Score and rank 230+ programs from bounty-targets-data
+│   ├── fetch_osint.py      ← Passive OSINT: crt.sh, URLScan, GitHub, SecurityTrails, Whoxy
+│   └── import_recon.py     ← Import recon output from external tools
 │
 ├── tests/                  ← Automated tests
 │   └── test_smoke.py       ← 6 tests that verify nothing is broken
@@ -112,15 +115,29 @@ Started with: `docker compose up -d`
 The worker that runs these is started with: `.venv/bin/python -m src.worker.main`
 
 ### Layer 4 — Dashboard (src/api/)
-A private website running at `localhost:8000`. Requires an API key to access.
+A private website running at `localhost:8000`. Login once with your API key — a 7-day cookie keeps you authenticated across browser sessions. The key is stored as a SHA-256 hash in `.env`; the plaintext is never saved to disk.
 
 | Page | What you see |
 |---|---|
-| /programs | All programs with scores and status |
+| /programs | All active and paused programs with scores and status badges |
+| /programs/discover | 230+ scored programs from bounty-targets-data, filterable by phase |
+| /programs/{id} | Program detail — scope, scores, constraints, recon history |
 | /assets | All discovered assets, highlighted new ones |
+| /triage | Assets ranked by risk score for manual review |
+| /hunt | Hunt sessions — hypothesis, checklist, notes, findings |
 | /findings | Bug pipeline sorted by status (kanban-style) |
-| /alerts | Unread alerts |
+| /alerts | Unread alerts for new or changed assets |
 | /dashboard/health | Recon run history and workflow status |
+
+**Program lifecycle** — every program moves through three states:
+
+| Status | Meaning | Available transitions |
+|---|---|---|
+| active | Currently hunting | → paused, → archived |
+| paused | On hold, not running recon | → active, → archived |
+| archived | Done with this program | → active (reactivate) |
+
+Recon workflows refuse to run against paused or archived programs. The programs index hides archived entries by default — use "Show archived" to see them.
 
 Started with: `.venv/bin/uvicorn src.api.main:app --reload`
 
