@@ -4,29 +4,70 @@ import re
 from temporalio import activity
 
 
+# Resolved from env so the binary path can be overridden in CI or on a VM
+# without changing code. Defaults to "subfinder" on the system PATH.
 SUBFINDER = os.getenv("SUBFINDER_PATH", "subfinder")
+
+# Allowlist for domain characters — rejects anything with spaces, shell
+# metacharacters, or other injection attempts before passing to subprocess.
 _SAFE_DOMAIN = re.compile(r"^[a-zA-Z0-9.\-*]+$")
 
 
-def _extract_root_domains(scope: list[str]) -> list[str]:
-    """Pull enumerable root domains from scope entries."""
-    domains = []
+def _extract_root_domains(scope: list[str], out_of_scope: list[str]) -> list[str]:
+    """Return root domains that subfinder should enumerate, excluding OOS roots.
+
+    Why we strip to root domains: subfinder takes a root domain (e.g. konghq.com)
+    and discovers all subdomains beneath it. Wildcards like *.api.konghq.com and
+    full URLs like https://cloud.konghq.com both reduce to their root domain.
+
+    Why we exclude OOS roots: some programs have a root domain in OOS even though
+    a specific subdomain is in scope (e.g. insomnia.rest is OOS but
+    app.insomnia.rest is in scope). We skip enumerating the OOS root entirely —
+    validate_target() in store_assets enforces the per-asset boundary when results
+    are saved, so only the explicitly in-scope subdomain would be stored anyway.
+    Running subfinder on an OOS root wastes time and probes hosts we can't report on.
+
+    Non-domain scope items (e.g. "Kong Mesh", "Insomnia CLI") fail the regex and
+    are silently skipped — they are executable products, not enumerable domains.
+    """
+    oos_roots: set[str] = set()
+    for entry in out_of_scope:
+        root = entry.strip().lstrip("*.").split("/")[0].lower()
+        if root and _SAFE_DOMAIN.match(root):
+            oos_roots.add(root)
+
+    domains: list[str] = []
     for entry in scope:
-        entry = entry.strip().lstrip("*.")
-        parts = entry.split("/")[0]  # strip any URL paths
-        if parts and _SAFE_DOMAIN.match(parts):
-            domains.append(parts)
+        root = entry.strip().lstrip("*.").split("/")[0].lower()
+        if root and _SAFE_DOMAIN.match(root) and root not in oos_roots:
+            domains.append(root)
+
     return list(set(domains))
 
 
 @activity.defn
-async def enumerate_subdomains(scope: list[str]) -> list[str]:
-    domains = _extract_root_domains(scope)
+async def enumerate_subdomains(scope: list[str], out_of_scope: list[str] | None = None) -> list[str]:
+    """Run subfinder against every in-scope root domain and return discovered subdomains.
+
+    out_of_scope is optional for backwards compatibility — callers that haven't
+    been updated to pass it yet will get the old behaviour (no OOS filtering at
+    enumeration time, relying solely on validate_target at store time).
+
+    Why we include the root domains themselves: subfinder only returns discovered
+    children, not the apex. If cloud.konghq.com is in scope, we want to probe it
+    directly even if subfinder finds nothing beneath it.
+
+    Heartbeat is sent per-domain so Temporal knows the activity is still alive
+    during a long subfinder run and doesn't time it out prematurely.
+    """
+    domains = _extract_root_domains(scope, out_of_scope or [])
     if not domains:
         return []
 
     results: list[str] = []
     for domain in domains:
+        # Temporal heartbeat — required for long-running activities so the server
+        # doesn't assume the worker crashed and schedule a retry mid-run.
         activity.heartbeat(f"subfinder: {domain}")
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -35,12 +76,14 @@ async def enumerate_subdomains(scope: list[str]) -> list[str]:
                 stderr=asyncio.subprocess.DEVNULL,
             )
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=120)
-            lines = [l.strip() for l in stdout.decode().splitlines() if l.strip()]
+            lines = [line.strip() for line in stdout.decode().splitlines() if line.strip()]
             results.extend(lines)
-        except (FileNotFoundError, asyncio.TimeoutError) as e:
-            activity.logger.warning(f"subfinder failed for {domain}: {e}")
+        except FileNotFoundError:
+            activity.logger.warning(f"subfinder not found — install it with: brew install subfinder")
+        except asyncio.TimeoutError:
+            activity.logger.warning(f"subfinder timed out for {domain} after 120s")
 
-    # always include scope domains themselves
+    # Always include the root domains themselves — subfinder only returns children.
     for d in domains:
         if d not in results:
             results.append(d)

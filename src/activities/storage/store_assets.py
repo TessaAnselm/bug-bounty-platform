@@ -57,8 +57,12 @@ async def store_assets(
 
     with Session(engine) as session:
         for r in probe_results:
-            # Scope enforcement — drop out-of-scope assets before storage
-            if scope and not validate_target(r["input"], scope, out_of_scope):
+            # Scope enforcement — drop out-of-scope assets before any DB write.
+            # We always validate, even if scope is empty: an empty scope means
+            # the program has no defined targets so nothing should be stored.
+            # The original `if scope and ...` guard had a bug where an empty scope
+            # list would skip validation entirely and store everything unchecked.
+            if not validate_target(r["input"], scope, out_of_scope):
                 continue
             existing = session.execute(
                 select(Asset).where(

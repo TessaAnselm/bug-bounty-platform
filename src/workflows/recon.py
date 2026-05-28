@@ -36,6 +36,10 @@ class ReconWorkflow:
             retry_policy=_RETRY,
         )
         scope = program["scope"]
+        # out_of_scope is passed through every activity that touches assets so
+        # filtering happens at enumeration time (fewer probes) AND at storage time
+        # (validate_target enforces the boundary before any DB write).
+        out_of_scope = program.get("out_of_scope", [])
 
         recon_run_id = await workflow.execute_activity(
             create_recon_run,
@@ -46,7 +50,7 @@ class ReconWorkflow:
 
         subdomains = await workflow.execute_activity(
             enumerate_subdomains,
-            scope,
+            args=[scope, out_of_scope],
             start_to_close_timeout=_LONG,
             retry_policy=_RETRY,
         )
@@ -97,7 +101,11 @@ class ReconWorkflow:
 
         asset_ids = await workflow.execute_activity(
             store_assets,
-            args=[input.program_id, recon_run_id, probe_results],
+            # scope and out_of_scope must be passed explicitly so validate_target()
+            # runs on every probe result before it is written to the database.
+            # Without them the guard short-circuits (empty scope = skip validation)
+            # and OOS assets would be stored.
+            args=[input.program_id, recon_run_id, probe_results, scope, out_of_scope],
             start_to_close_timeout=_SHORT,
             retry_policy=_RETRY,
         )
