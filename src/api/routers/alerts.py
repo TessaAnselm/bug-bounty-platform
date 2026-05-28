@@ -26,6 +26,7 @@ async def alert_list(request: Request, api_key: str = Depends(verify_api_key)):
         "api_key": api_key,
         "alerts": alerts,
         "programs": programs,
+        "active": "alerts",
     })
 
 

@@ -43,4 +43,5 @@ async def health_view(request: Request, api_key: str = Depends(verify_api_key)):
         "request": request,
         "api_key": api_key,
         "runs": enriched,
+        "active": "health",
     })

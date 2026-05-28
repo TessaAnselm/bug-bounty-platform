@@ -46,6 +46,7 @@ async def asset_list(
         "filter_is_new": is_new,
         "filter_status": status,
         "filter_type": asset_type,
+        "active": "assets",
     })
 
 
@@ -75,4 +76,5 @@ async def asset_detail(asset_id: str, request: Request, api_key: str = Depends(v
         "program": program,
         "notes": notes,
         "findings": findings,
+        "active": "assets",
     })

@@ -46,6 +46,7 @@ async def findings_pipeline(request: Request, api_key: str = Depends(verify_api_
         "api_key": api_key,
         "columns": PIPELINE_COLUMNS,
         "by_status": by_status,
+        "active": "findings",
     })
 
 
@@ -69,6 +70,7 @@ async def finding_detail(finding_id: str, request: Request, api_key: str = Depen
         "outcomes": outcomes,
         "statuses": [s for s, _ in PIPELINE_COLUMNS],
         "outcome_results": ["accepted", "duplicate", "informative", "not_applicable", "paid"],
+        "active": "findings",
     })
 
 
