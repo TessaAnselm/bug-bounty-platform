@@ -31,9 +31,22 @@ async def probe_hosts(hosts: list[str]) -> list[dict]:
             stderr=asyncio.subprocess.DEVNULL,
         )
         input_data = "\n".join(hosts).encode()
-        stdout, _ = await asyncio.wait_for(proc.communicate(input_data), timeout=300)
+        # Heartbeat while waiting so Temporal doesn't consider the activity dead
+        # during a long probe run. 600s covers ~120 hosts with tech-detect at 5 RPS.
+        async def _heartbeat_loop() -> None:
+            i = 0
+            while True:
+                await asyncio.sleep(30)
+                i += 1
+                activity.heartbeat(f"httpx still running ({i * 30}s)")
+
+        heartbeat_task = asyncio.create_task(_heartbeat_loop())
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(input_data), timeout=600)
+        finally:
+            heartbeat_task.cancel()
     except (FileNotFoundError, asyncio.TimeoutError) as e:
-        activity.logger.warning(f"httpx failed: {e}")
+        activity.logger.warning(f"httpx failed: {type(e).__name__}: {e}")
         return []
 
     results = []
