@@ -17,6 +17,9 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 **Program Detail — scope editor, constraints, recon history, and status controls**
 ![Program Detail](docs/screenshots/program_detail.png)
 
+**Workflow Health — recon run history with live status, duration, and asset counts**
+![Workflow Health](docs/screenshots/workflow_health.png)
+
 **Triage Queue — assets ranked by risk score**
 <!-- ![Triage Queue](docs/screenshots/triage.png) -->
 
