@@ -123,3 +123,22 @@ async def complete_recon_run(recon_run_id: str, assets_found: int, new_assets: i
             run.new_assets = new_assets
             run.completed_at = datetime.now(timezone.utc)
             session.commit()
+
+
+@activity.defn
+async def fail_recon_run(recon_run_id: str) -> None:
+    """Mark a recon run as failed so the health dashboard shows the real status.
+
+    Called from ReconWorkflow's except block — when any activity exhausts its
+    retries, Temporal raises ApplicationError and the workflow branches here
+    instead of calling complete_recon_run. Without this, failed runs stay
+    'running' forever in the DB (complete_recon_run never executes on failure).
+    """
+    from datetime import datetime, timezone
+
+    with Session(engine) as session:
+        run = session.get(ReconRun, recon_run_id)
+        if run:
+            run.status = ReconStatus.failed
+            run.completed_at = datetime.now(timezone.utc)
+            session.commit()
