@@ -39,35 +39,39 @@ if ! docker compose version &>/dev/null; then
 fi
 
 # ── API key ────────────────────────────────────────────────────────────────
-# Usage: ./start.sh            → generates a new random key each run
-#        ./start.sh mypassword → uses "mypassword" as the key every time
+# Usage: ./start.sh              → keeps existing key, or generates one on first run
+#        ./start.sh mypassword   → sets "mypassword" as the key (run once to establish it)
 #
 # Only the SHA-256 hash is stored in .env — plaintext is never saved to disk.
-# The raw key is printed once below so you can open the dashboard URL directly.
+# Once a key is set, restarts reuse the existing hash so browser cookies stay
+# valid across restarts. To rotate the key, pass a new argument explicitly.
 #
 # API_KEY is intentionally kept as a shell variable only, not exported.
-# It is needed at the end to print the dashboard URL.
+# It is only populated when we generate/set a new key so we can print the URL.
+
+EXISTING_HASH=$(grep "^DASHBOARD_API_KEY=" "$PROJECT_DIR/.env" 2>/dev/null | cut -d= -f2)
 
 if [ -n "${1:-}" ]; then
+  # Explicit argument — rotate to a new known key
   API_KEY="$1"
   echo "  Key: using provided argument"
+  KEY_HASH=$(RAW_KEY="$API_KEY" "$VENV/python" -c \
+    "import hashlib, os; print(hashlib.sha256(os.environ['RAW_KEY'].encode()).hexdigest())")
+  if grep -q "^DASHBOARD_API_KEY=" "$PROJECT_DIR/.env" 2>/dev/null; then
+    perl -0pi -e "s/^DASHBOARD_API_KEY=.*/DASHBOARD_API_KEY=$KEY_HASH/m" "$PROJECT_DIR/.env"
+  else
+    echo "DASHBOARD_API_KEY=$KEY_HASH" >> "$PROJECT_DIR/.env"
+  fi
+elif [ -n "$EXISTING_HASH" ]; then
+  # Key already set — reuse it so existing browser cookies stay valid
+  API_KEY=""
+  echo "  Key: using existing key from .env (browser session preserved)"
 else
-  # Use the venv Python (not system python3) for consistency —
-  # guarantees the same interpreter that runs the app generates the key.
+  # First run — generate a random key and store its hash
   API_KEY=$("$VENV/python" -c "import secrets; print(secrets.token_urlsafe(32))")
-  echo "  Key: generated random key for this session"
-fi
-
-# Hash the key before storing it. If .env is ever exposed (e.g. accidental
-# copy, shoulder surfing), the attacker sees a SHA-256 digest, not the raw key.
-KEY_HASH=$(RAW_KEY="$API_KEY" "$VENV/python" -c \
-  "import hashlib, os; print(hashlib.sha256(os.environ['RAW_KEY'].encode()).hexdigest())")
-
-# Write the hash into .env.
-# perl avoids the macOS/Linux sed -i difference and is available on most dev systems.
-if grep -q "^DASHBOARD_API_KEY=" "$PROJECT_DIR/.env" 2>/dev/null; then
-  perl -0pi -e "s/^DASHBOARD_API_KEY=.*/DASHBOARD_API_KEY=$KEY_HASH/m" "$PROJECT_DIR/.env"
-else
+  echo "  Key: generated new key (first run)"
+  KEY_HASH=$(RAW_KEY="$API_KEY" "$VENV/python" -c \
+    "import hashlib, os; print(hashlib.sha256(os.environ['RAW_KEY'].encode()).hexdigest())")
   echo "DASHBOARD_API_KEY=$KEY_HASH" >> "$PROJECT_DIR/.env"
 fi
 
@@ -153,7 +157,12 @@ fi
 echo ""
 echo "==> All systems up"
 echo ""
-echo "  Dashboard   http://localhost:8000?api_key=$API_KEY"
+if [ -n "$API_KEY" ]; then
+  echo "  Dashboard   http://localhost:8000?api_key=$API_KEY"
+  echo "              (login once — cookie lasts 7 days)"
+else
+  echo "  Dashboard   http://localhost:8000"
+fi
 echo "  Temporal UI http://localhost:8080"
 echo "  Logs        $LOGS/"
 echo ""
