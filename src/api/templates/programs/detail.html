@@ -64,8 +64,10 @@
   {% endif %}
 </div>
 
+<div class="detail-section">
+  <h2>Scope</h2>
+</div>
 <div class="card" style="margin-bottom:1rem;">
-  <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Scope</div>
   {% if program.scope %}
   <div class="tech-list" style="margin-bottom:1rem;">
     {% for s in program.scope %}<span class="tech-tag">{{ s }}</span>{% endfor %}
@@ -101,14 +103,15 @@
 <div class="detail-section">
   <h2>Links</h2>
   <div style="display: flex; gap: 1rem;">
-    <a href="/assets?program_id={{ program.id }}&api_key={{ api_key }}" class="btn">View Assets</a>
-    <a href="/findings?api_key={{ api_key }}" class="btn">View Findings</a>
+    <a href="/assets?program_id={{ program.id }}" class="btn">View Assets</a>
+    <a href="/findings" class="btn">View Findings</a>
   </div>
 </div>
 
-{# ── Program constraints ────────────────────────────────────────────── #}
+<div class="detail-section">
+  <h2>Program Constraints</h2>
+</div>
 <div class="card" style="margin-bottom: 1rem;">
-  <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Program Constraints</div>
 
   {% if constraints %}
   <div style="margin-bottom:1rem; font-size:13px;">
