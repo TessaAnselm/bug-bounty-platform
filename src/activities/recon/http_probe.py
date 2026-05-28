@@ -22,7 +22,9 @@ async def probe_hosts(hosts: list[str]) -> list[dict]:
             "-l", "/dev/stdin",
             "-json",
             "-silent",
-            "-tech-detect",
+            # No -tech-detect here — fingerprint_tech runs as a separate parallel
+            # activity later in ReconWorkflow and does the same job. Including it
+            # here made httpx 10x slower and caused consistent 600s timeouts.
             "-rate-limit", str(RATE_LIMIT),
             "-threads", str(MAX_THREADS),
             "-timeout", "10",
@@ -31,8 +33,7 @@ async def probe_hosts(hosts: list[str]) -> list[dict]:
             stderr=asyncio.subprocess.DEVNULL,
         )
         input_data = "\n".join(hosts).encode()
-        # Heartbeat while waiting so Temporal doesn't consider the activity dead
-        # during a long probe run. 600s covers ~120 hosts with tech-detect at 5 RPS.
+        # Heartbeat every 30s so Temporal doesn't consider the activity dead.
         async def _heartbeat_loop() -> None:
             i = 0
             while True:
@@ -42,7 +43,12 @@ async def probe_hosts(hosts: list[str]) -> list[dict]:
 
         heartbeat_task = asyncio.create_task(_heartbeat_loop())
         try:
-            stdout, _ = await asyncio.wait_for(proc.communicate(input_data), timeout=600)
+            stdout, _ = await asyncio.wait_for(proc.communicate(input_data), timeout=300)
+        except asyncio.TimeoutError:
+            # Kill the subprocess so it doesn't keep running after we give up.
+            proc.kill()
+            await proc.wait()
+            raise
         finally:
             heartbeat_task.cancel()
     except (FileNotFoundError, asyncio.TimeoutError) as e:
