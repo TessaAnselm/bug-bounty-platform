@@ -12,7 +12,7 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 ![Program Discovery](docs/screenshots/discover.png)
 
 **Program Dashboard**
-<!-- ![Program Dashboard](docs/screenshots/programs.png) -->
+![Program Dashboard](docs/screenshots/programs.png)
 
 **Triage Queue — assets ranked by risk score**
 <!-- ![Triage Queue](docs/screenshots/triage.png) -->
