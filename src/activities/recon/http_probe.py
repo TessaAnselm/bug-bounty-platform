@@ -5,8 +5,8 @@ from temporalio import activity
 
 
 HTTPX = os.getenv("HTTPX_PATH", "httpx")
-RATE_LIMIT = int(os.getenv("RECON_RATE_LIMIT_RPS", "5"))
-MAX_THREADS = int(os.getenv("RECON_MAX_CONCURRENT", "2"))
+RATE_LIMIT = int(os.getenv("RECON_RATE_LIMIT_RPS", "10"))
+MAX_THREADS = int(os.getenv("RECON_MAX_CONCURRENT", "50"))
 
 
 @activity.defn
@@ -27,7 +27,7 @@ async def probe_hosts(hosts: list[str]) -> list[dict]:
             # here made httpx 10x slower and caused consistent 600s timeouts.
             "-rate-limit", str(RATE_LIMIT),
             "-threads", str(MAX_THREADS),
-            "-timeout", "10",
+            "-timeout", "5",
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
