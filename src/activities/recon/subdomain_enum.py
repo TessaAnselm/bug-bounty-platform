@@ -2,6 +2,7 @@ import os
 import asyncio
 import re
 from temporalio import activity
+from src.activities.storage.scope import validate_target
 
 
 # Resolved from env so the binary path can be overridden in CI or on a VM
@@ -60,7 +61,8 @@ async def enumerate_subdomains(scope: list[str], out_of_scope: list[str] | None 
     Heartbeat is sent per-domain so Temporal knows the activity is still alive
     during a long subfinder run and doesn't time it out prematurely.
     """
-    domains = _extract_root_domains(scope, out_of_scope or [])
+    oos = out_of_scope or []
+    domains = _extract_root_domains(scope, oos)
     if not domains:
         return []
 
@@ -88,4 +90,16 @@ async def enumerate_subdomains(scope: list[str], out_of_scope: list[str] | None 
         if d not in results:
             results.append(d)
 
-    return list(set(results))
+    all_found = list(set(results))
+
+    # Filter to only subdomains that pass scope validation before returning.
+    # konghq.com has 18K+ subdomains — probing all of them takes 30+ minutes
+    # and validate_target() in store_assets rejects 99% anyway (scope only covers
+    # specific wildcards like *.api.konghq.com, not all of konghq.com).
+    # Filtering here means httpx only probes hosts we can actually report on.
+    if scope:
+        in_scope = [h for h in all_found if validate_target(h, scope, oos)]
+        activity.logger.info(f"scope filter: {len(all_found)} found → {len(in_scope)} in scope")
+        return in_scope
+
+    return all_found
