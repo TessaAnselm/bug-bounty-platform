@@ -1,6 +1,7 @@
 import json
 import re
 import time
+import uuid
 from pathlib import Path
 from urllib.parse import quote
 from fastapi import APIRouter, Request, Depends, Form
@@ -404,7 +405,7 @@ def onboard_from_discover(
         ).scalar_one_or_none()
         if existing:
             return RedirectResponse(
-                url=f"/programs/{existing.id}?api_key={quote(api_key, safe='')}",
+                url=f"/programs/{uuid.UUID(str(existing.id))}",
                 status_code=303,
             )
 
@@ -421,7 +422,7 @@ def onboard_from_discover(
         program_id = str(program.id)
 
     return RedirectResponse(
-        url=f"/programs/{program_id}?api_key={quote(api_key, safe='')}",
+        url=f"/programs/{uuid.UUID(str(program_id))}",
         status_code=303,
     )
 
@@ -469,7 +470,7 @@ async def update_constraints(
     request: Request,
     notes: str = Form(""),
     rate_limit_rpm: str = Form(""),
-    allow_active_scanning: str = Form("off"),
+    allow_active_scanning: str = Form("of"),
     allowed_tools: str = Form(""),
     api_key: str = Depends(verify_api_key),
 ):
@@ -500,7 +501,7 @@ async def update_constraints(
         session.commit()
         safe_id = str(program.id)
 
-    return RedirectResponse(url=f"/programs/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url=f"/programs/{uuid.UUID(str(safe_id))}", status_code=303)
 
 
 _SAFE_SCOPE_ENTRY = re.compile(r"^[a-zA-Z0-9.\-*/: _]+$")
@@ -561,9 +562,9 @@ async def update_scope(
     # Pass skipped entries back as a query param so the detail page can show a warning.
     skipped_all = scope_skipped + oos_skipped
     warning = quote(", ".join(skipped_all), safe="") if skipped_all else ""
-    url = f"/programs/{safe_id}?api_key={quote(api_key, safe='')}"
+    url = f"/programs/{uuid.UUID(str(safe_id))}"
     if warning:
-        url += f"&scope_warning={warning}"
+        url += f"?scope_warning={warning}"
     return RedirectResponse(url=url, status_code=303)
 
 
@@ -604,4 +605,4 @@ async def update_status(
         session.commit()
         safe_id = str(program.id)
 
-    return RedirectResponse(url=f"/programs/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url=f"/programs/{uuid.UUID(str(safe_id))}", status_code=303)
