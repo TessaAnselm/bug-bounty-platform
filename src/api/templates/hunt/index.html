@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <span class="page-title">Hunt Sessions</span>
-  <a href="/triage?api_key={{ api_key }}" class="btn btn-sm">+ Start from Triage ↗</a>
+  <a href="/triage" class="btn btn-sm">+ Start from Triage ↗</a>
 </div>
 
 {% if sessions %}
@@ -25,7 +25,7 @@
   {% set p = item.program %}
   <tr>
     <td>
-      <a href="/hunt/{{ h.id }}?api_key={{ api_key }}">
+      <a href="/hunt/{{ h.id }}">
         {{ a.value if a else h.asset_id }}
       </a>
     </td>
@@ -51,7 +51,7 @@
 {% else %}
 <div class="empty">
   No hunt sessions yet.<br>
-  Go to the <a href="/triage?api_key={{ api_key }}">Triage Queue</a>, pick a high-risk asset, and start a session.
+  Go to the <a href="/triage">Triage Queue</a>, pick a high-risk asset, and start a session.
 </div>
 {% endif %}
 {% endblock %}
