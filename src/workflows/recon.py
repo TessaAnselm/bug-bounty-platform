@@ -42,6 +42,20 @@ class ReconWorkflow:
         # (validate_target enforces the boundary before any DB write).
         out_of_scope = program.get("out_of_scope", [])
 
+        # Per-program constraints drive compliant recon (see Program Constraints
+        # on the dashboard). These are plain data from an activity result, so
+        # reading them here keeps the workflow deterministic.
+        platform = program.get("platform", "")
+        constraints = program.get("constraints") or {}
+        # Stated cap is requests/minute; httpx wants requests/second. None lets
+        # probe_hosts fall back to its global default.
+        rpm = constraints.get("rate_limit_rpm")
+        probe_rate_rps = max(1, rpm // 60) if rpm else None
+        # Active tools (gowitness screenshots, katana JS crawl) send traffic to
+        # the target, so they only run when the program explicitly permits active
+        # scanning. Default is passive-only — safer and matches stricter programs.
+        allow_active = bool(constraints.get("allow_active_scanning"))
+
         recon_run_id = await workflow.execute_activity(
             create_recon_run,
             args=[input.program_id, input.triggered_by],
@@ -62,40 +76,53 @@ class ReconWorkflow:
 
             probe_results = await workflow.execute_activity(
                 probe_hosts,
-                subdomains,
+                # rate + platform let probe_hosts honor the program's request cap
+                # and attach any required identifying header (e.g. X-HackerOne-Research).
+                args=[subdomains, probe_rate_rps, platform],
                 start_to_close_timeout=_LONG,
                 retry_policy=_RETRY,
             )
 
             live_urls = [r["url"] for r in probe_results if r.get("url")]
 
-            tech_task = workflow.execute_activity(
-                fingerprint_tech,
-                probe_results,
-                start_to_close_timeout=_SHORT,
-                retry_policy=_RETRY,
-            )
-            screenshot_task = workflow.execute_activity(
-                capture_screenshots,
-                live_urls,
-                start_to_close_timeout=_LONG,
-                retry_policy=_RETRY,
-            )
-            js_task = workflow.execute_activity(
-                crawl_js_files,
-                live_urls,
-                start_to_close_timeout=_LONG,
-                retry_policy=_RETRY,
-            )
-            hist_task = workflow.execute_activity(
-                collect_hist_urls,
-                scope,
-                start_to_close_timeout=_LONG,
-                retry_policy=_RETRY,
-            )
-
             import asyncio
-            await asyncio.gather(tech_task, screenshot_task, js_task, hist_task)
+
+            # Always-safe steps: fingerprint_tech works on probe_results (no
+            # target traffic) and collect_hist_urls reads public archives (passive).
+            tasks = [
+                workflow.execute_activity(
+                    fingerprint_tech,
+                    probe_results,
+                    start_to_close_timeout=_SHORT,
+                    retry_policy=_RETRY,
+                ),
+                workflow.execute_activity(
+                    collect_hist_urls,
+                    scope,
+                    start_to_close_timeout=_LONG,
+                    retry_policy=_RETRY,
+                ),
+            ]
+            # Active tools hit the target directly — only run with explicit opt-in.
+            if allow_active:
+                tasks.append(
+                    workflow.execute_activity(
+                        capture_screenshots,
+                        live_urls,
+                        start_to_close_timeout=_LONG,
+                        retry_policy=_RETRY,
+                    )
+                )
+                tasks.append(
+                    workflow.execute_activity(
+                        crawl_js_files,
+                        live_urls,
+                        start_to_close_timeout=_LONG,
+                        retry_policy=_RETRY,
+                    )
+                )
+
+            await asyncio.gather(*tasks)
 
             await workflow.execute_activity(
                 run_github_osint,

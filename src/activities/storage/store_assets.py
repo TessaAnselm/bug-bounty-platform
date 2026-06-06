@@ -22,8 +22,12 @@ async def load_program_scope(program_id: str) -> dict:
             )
         return {
             "name": program.name,
+            "platform": program.platform or "",
             "scope": program.scope or [],
             "out_of_scope": program.out_of_scope or [],
+            # Per-program constraints (rate_limit_rpm, allow_active_scanning,
+            # allowed_tools, notes) drive compliant recon in ReconWorkflow.
+            "constraints": program.constraints or {},
         }
 
 
