@@ -5,7 +5,7 @@
 {# ── Header ─────────────────────────────────────────────────────────── #}
 <div class="page-header">
   <span class="page-title">
-    <a href="/findings?api_key={{ api_key }}">Findings</a> / {{ finding.title }}
+    <a href="/findings">Findings</a> / {{ finding.title }}
   </span>
   <span class="badge badge-{{ finding.severity.value }}">{{ finding.severity.value }}</span>
 </div>
@@ -14,7 +14,7 @@
 <div class="detail-grid" style="margin-bottom: 1rem;">
   <div class="card">
     <dl class="kv-list">
-      <dt>Program</dt><dd>{% if program %}<a href="/programs/{{ program.id }}?api_key={{ api_key }}">{{ program.name }}</a>{% else %}—{% endif %}</dd>
+      <dt>Program</dt><dd>{% if program %}<a href="/programs/{{ program.id }}">{{ program.name }}</a>{% else %}—{% endif %}</dd>
       <dt>Vuln Type</dt><dd>{{ finding.vuln_type }}</dd>
       <dt>Status</dt><dd><span class="badge badge-{{ finding.status.value if finding.status else '' }}">{{ finding.status.value if finding.status else "—" }}</span></dd>
       <dt>Confidence</dt><dd>{% if finding.confidence_score %}{{ (finding.confidence_score * 100) | int }}%{% else %}<span style="color:var(--text-muted)">unset</span>{% endif %}</dd>
@@ -28,7 +28,6 @@
   <div class="card">
     <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem;">Update Status</div>
     <form method="post" action="/findings/{{ finding.id }}/status" style="display:flex; gap:0.5rem; margin-bottom: 1rem;">
-      <input type="hidden" name="api_key" value="{{ api_key }}">
       <select name="new_status" class="form-select">
         {% for s in statuses %}
         <option value="{{ s }}" {% if finding.status and finding.status.value == s %}selected{% endif %}>{{ s }}</option>
@@ -39,16 +38,15 @@
 
     <div style="font-size:13px; font-weight:600; margin-bottom:0.5rem;">Export Report</div>
     <div style="display:flex; gap:0.35rem; flex-wrap: wrap;">
-      <a href="/findings/{{ finding.id }}/export?fmt=markdown&api_key={{ api_key }}" class="btn btn-sm">Markdown ↓</a>
-      <a href="/findings/{{ finding.id }}/export?fmt=hackerone&api_key={{ api_key }}" class="btn btn-sm">HackerOne ↓</a>
-      <a href="/findings/{{ finding.id }}/export?fmt=bugcrowd&api_key={{ api_key }}" class="btn btn-sm">Bugcrowd ↓</a>
+      <a href="/findings/{{ finding.id }}/export?fmt=markdown" class="btn btn-sm">Markdown ↓</a>
+      <a href="/findings/{{ finding.id }}/export?fmt=hackerone" class="btn btn-sm">HackerOne ↓</a>
+      <a href="/findings/{{ finding.id }}/export?fmt=bugcrowd" class="btn btn-sm">Bugcrowd ↓</a>
     </div>
   </div>
 </div>
 
 {# ── Report builder ──────────────────────────────────────────────────── #}
 <form method="post" action="/findings/{{ finding.id }}/report">
-  <input type="hidden" name="api_key" value="{{ api_key }}">
 
   <div class="card" style="margin-bottom: 1rem;">
     <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Report Builder</div>
@@ -101,7 +99,6 @@
   {% endif %}
 
   <form method="post" action="/findings/{{ finding.id }}/outcome">
-    <input type="hidden" name="api_key" value="{{ api_key }}">
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
       <div>
         <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Result</label>
