@@ -27,7 +27,7 @@ async def create_note(
         )
         session.add(note)
         session.commit()
-    return RedirectResponse(url=f"/assets?api_key={api_key}", status_code=303)
+    return RedirectResponse(url="/assets", status_code=303)
 
 
 @router.post("/{note_id}/delete")
@@ -41,4 +41,4 @@ async def delete_note(
         if note:
             session.delete(note)
             session.commit()
-    return RedirectResponse(url=f"/assets?api_key={api_key}", status_code=303)
+    return RedirectResponse(url="/assets", status_code=303)
