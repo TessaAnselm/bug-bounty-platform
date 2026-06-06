@@ -168,7 +168,10 @@ pipeline, artifact storage.
 - `targets/` and `reports/` are gitignored — never commit findings
 - `artifacts/` and `exports/` are gitignored — never commit evidence
 - `.env` is gitignored — never commit credentials
-- Dashboard requires API key auth (key in .env)
+- Dashboard requires API key auth (only the SHA-256 hash is in .env). Login
+  issues a signed, 7-day session-token cookie — the raw key is never stored in
+  the cookie, URLs, or logs. Programmatic access uses the X-API-Key header.
+  See `src/api/auth.py` and SECURITY.md → "Dashboard Authentication".
 - Snyk MCP is already wired in this session — run on all new code
 - Run gitleaks before every commit
 - `validate_target()` in `src/activities/storage/scope.py` enforces scope technically
