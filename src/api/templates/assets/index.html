@@ -6,7 +6,6 @@
 </div>
 
 <form class="filters" method="get">
-  <input type="hidden" name="api_key" value="{{ api_key }}">
   <select name="program_id" onchange="this.form.submit()">
     <option value="">All programs</option>
     {% for p in programs %}
@@ -37,7 +36,7 @@
   <tbody>
   {% for a in assets %}
   <tr {% if a.is_new %}class="is-new"{% endif %}>
-    <td><a href="/assets/{{ a.id }}?api_key={{ api_key }}">{{ a.value }}</a>{% if a.is_new %} <span class="badge badge-new" style="font-size:10px">NEW</span>{% endif %}</td>
+    <td><a href="/assets/{{ a.id }}">{{ a.value }}</a>{% if a.is_new %} <span class="badge badge-new" style="font-size:10px">NEW</span>{% endif %}</td>
     <td><span class="badge badge-info">{{ a.type.value }}</span></td>
     <td><span class="badge badge-{{ a.status.value }}">{{ a.status.value }}</span></td>
     <td>{% if a.http_status %}<code>{{ a.http_status }}</code>{% else %}—{% endif %}</td>
