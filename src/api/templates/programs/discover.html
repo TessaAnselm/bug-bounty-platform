@@ -12,7 +12,6 @@
 </div>
 
 <form class="filters" method="get">
-  <input type="hidden" name="api_key" value="{{ api_key }}">
 
   <label style="color: var(--text-muted); font-size: 13px; margin-right: 4px;">Phase:</label>
   <select name="phase" onchange="this.form.submit()">
@@ -95,7 +94,6 @@
 
     <td>
       <form method="post" action="/programs/discover/onboard" style="display:inline">
-        <input type="hidden" name="api_key" value="{{ api_key }}">
         <input type="hidden" name="name" value="{{ r.name | e }}">
         <input type="hidden" name="platform" value="{{ r.platform }}">
         <input type="hidden" name="url" value="{{ r.url | e }}">
