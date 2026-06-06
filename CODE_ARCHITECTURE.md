@@ -115,7 +115,23 @@ Started with: `docker compose up -d`
 The worker that runs these is started with: `.venv/bin/python -m src.worker.main`
 
 ### Layer 4 — Dashboard (src/api/)
-A private website running at `localhost:8000`. Login once with your API key — a 7-day cookie keeps you authenticated across browser sessions. The key is stored as a SHA-256 hash in `.env`; the plaintext is never saved to disk.
+A private website running at `localhost:8000`. Login once with your API key; the key is stored only as a SHA-256 hash in `.env` (plaintext never saved to disk).
+
+**Authentication model (session tokens, not the raw key).** The browser never
+holds or transmits the API key after login. At login the key is verified once,
+then the server issues a *signed, 7-day-expiring session token* (HMAC-SHA256,
+stdlib — see `src/api/auth.py`). The `bounty_session` cookie holds that token,
+never the key. Consequences, by design:
+- the long-lived secret never sits in the cookie jar, page URLs, access logs, or browser history
+- a stolen cookie expires after 7 days and is not the master key (and is not reusable elsewhere)
+- the token is stateless (HMAC-signed), so it survives a dashboard restart without a server-side session store
+
+Page links and forms carry **no** credential — same-origin requests send the
+cookie automatically. Programmatic clients (curl/scripts) authenticate per
+request with the raw key via the `X-API-Key` header or `?api_key=` query param.
+A small auto-login middleware converts a valid `?api_key=` browser visit (e.g.
+the `start.sh` URL) into a session cookie and strips the key from the address
+bar. Set `COOKIE_SECURE=true` once the dashboard is served over HTTPS.
 
 | Page | What you see |
 |---|---|
