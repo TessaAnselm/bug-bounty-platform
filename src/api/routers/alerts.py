@@ -37,7 +37,7 @@ async def mark_seen(alert_id: str, request: Request, api_key: str = Depends(veri
         if alert:
             alert.seen = True
             session.commit()
-    return RedirectResponse(url=f"/alerts?api_key={api_key}", status_code=303)
+    return RedirectResponse(url="/alerts", status_code=303)
 
 
 @router.post("/seen-all")
@@ -47,4 +47,4 @@ async def mark_all_seen(request: Request, api_key: str = Depends(verify_api_key)
             Alert.__table__.update().where(Alert.seen == False).values(seen=True)
         )
         session.commit()
-    return RedirectResponse(url=f"/alerts?api_key={api_key}", status_code=303)
+    return RedirectResponse(url="/alerts", status_code=303)
