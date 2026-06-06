@@ -97,7 +97,10 @@
         <input type="hidden" name="name" value="{{ r.name | e }}">
         <input type="hidden" name="platform" value="{{ r.platform }}">
         <input type="hidden" name="url" value="{{ r.url | e }}">
-        <input type="hidden" name="scope_json" value="{{ r.scope_items | tojson }}">
+        <!-- single-quoted attribute: tojson emits double quotes (and escapes ' to '),
+             so a double-quoted value="" would be truncated at the first inner quote. -->
+        <input type="hidden" name="scope_json" value='{{ r.scope_items | tojson }}'>
+        <input type="hidden" name="out_of_scope_json" value='{{ r.out_of_scope_items | tojson }}'>
         <button type="submit" style="
           background: var(--accent);
           color: #000;

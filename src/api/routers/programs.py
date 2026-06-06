@@ -69,7 +69,15 @@ def _parse_h1(programs: list[dict]) -> list[dict]:
             for s in p.get("targets", {}).get("in_scope", [])
             if s.get("eligible_for_bounty") and s.get("asset_identifier")
         ]
+        # Out-of-scope has no bounty-eligibility flag — anything listed is OOS.
+        # Importing it lets validate_target() reject these assets automatically.
+        oos_items = [
+            s["asset_identifier"]
+            for s in p.get("targets", {}).get("out_of_scope", [])
+            if s.get("asset_identifier")
+        ]
         p["_scope_items"] = scope_items
+        p["_out_of_scope_items"] = oos_items
         p["_platform"] = "hackerone"
         results.append(p)
     return results
@@ -93,6 +101,9 @@ def _parse_bc(programs: list[dict]) -> list[dict]:
             elif isinstance(t, str):
                 scope_items.append(t)
         p["_scope_items"] = scope_items
+        # Bugcrowd's bounty-targets-data shape is a flat in-scope list, so we
+        # don't have a reliable out-of-scope list here. Default to empty.
+        p["_out_of_scope_items"] = []
         p["_platform"] = "bugcrowd"
         results.append(p)
     return results
@@ -264,6 +275,7 @@ def _btd_score(program: dict, phase: int) -> dict:
         "response_days": program.get("average_time_to_first_program_response"),
         "scope_count": len(scope_items),
         "scope_items": scope_items[:50],
+        "out_of_scope_items": program.get("_out_of_scope_items", [])[:50],
         "total_score": round(total, 1),
         "payout_score": round(payout, 1),
         "scope_score": round(scope, 1),
@@ -384,26 +396,45 @@ def onboard_from_discover(
     platform: str = Form(...),
     url: str = Form(""),  # accepted from the discover form but not stored — Program model has no url column
     scope_json: str = Form("[]"),
+    out_of_scope_json: str = Form("[]"),
     api_key: str = Depends(verify_api_key),
 ):
     """Create a new program from the Discover page with a single click.
     Deduplicates by name — clicking Onboard twice redirects to the existing record
-    rather than creating a duplicate. Scope comes from bounty-targets-data as a
-    JSON-encoded list; the detail page scope editor can refine it afterwards.
+    rather than creating a duplicate. Scope and out-of-scope come from
+    bounty-targets-data as JSON-encoded lists; the detail page editor can refine
+    them afterwards.
     """
-    try:
-        scope_items = json.loads(scope_json)
-        if not isinstance(scope_items, list):
-            scope_items = []
-        scope_items = [str(s) for s in scope_items[:100] if s]
-    except (json.JSONDecodeError, ValueError):
-        scope_items = []
+    def _parse_list(raw: str) -> list[str]:
+        try:
+            items = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return []
+        if not isinstance(items, list):
+            return []
+        return [str(s) for s in items[:100] if s]
+
+    scope_items = _parse_list(scope_json)
+    oos_items = _parse_list(out_of_scope_json)
 
     with Session(engine) as session:
         existing = session.execute(
             select(Program).where(Program.name == name)
         ).scalar_one_or_none()
         if existing:
+            # Backfill scope/out-of-scope if this record was created empty (e.g.
+            # before the discover scope-import fix). We only fill when the
+            # existing value is empty so we never clobber lists the user refined
+            # by hand on the detail page.
+            changed = False
+            if scope_items and not existing.scope:
+                existing.scope = scope_items
+                changed = True
+            if oos_items and not existing.out_of_scope:
+                existing.out_of_scope = oos_items
+                changed = True
+            if changed:
+                session.commit()
             return RedirectResponse(
                 url=f"/programs/{uuid.UUID(str(existing.id))}",
                 status_code=303,
@@ -413,7 +444,7 @@ def onboard_from_discover(
             name=name,
             platform=platform,
             scope=scope_items,
-            out_of_scope=[],
+            out_of_scope=oos_items,
             max_payout=None,
             status=ProgramStatus.active,
         )
