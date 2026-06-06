@@ -15,7 +15,7 @@
   {% for item in runs %}
   {% set r = item.run %}
   <tr>
-    <td>{% if item.program %}<a href="/programs/{{ r.program_id }}?api_key={{ api_key }}">{{ item.program.name }}</a>{% else %}{{ r.program_id }}{% endif %}</td>
+    <td>{% if item.program %}<a href="/programs/{{ r.program_id }}">{{ item.program.name }}</a>{% else %}{{ r.program_id }}{% endif %}</td>
     <td>{{ r.started_at.strftime("%m/%d %H:%M") if r.started_at else "—" }}</td>
     <td><span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span></td>
     <td>{{ r.assets_found }}</td>
