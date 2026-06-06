@@ -1,5 +1,5 @@
+import uuid
 from pathlib import Path
-from urllib.parse import quote
 from fastapi import APIRouter, Request, Depends, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
@@ -96,7 +96,7 @@ async def update_report(
         finding.recommended_fix = recommended_fix.strip() or None
         session.commit()
         safe_id = str(finding.id)
-    return RedirectResponse(url=f"/findings/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url=f"/findings/{uuid.UUID(str(safe_id))}", status_code=303)
 
 
 @router.post("/{finding_id}/outcome")
@@ -141,7 +141,7 @@ async def record_outcome(
         session.commit()
         safe_id = str(finding.id)
 
-    return RedirectResponse(url=f"/findings/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url=f"/findings/{uuid.UUID(str(safe_id))}", status_code=303)
 
 
 @router.post("/{finding_id}/status")
@@ -182,7 +182,7 @@ async def update_finding_status(
         except Exception:
             pass
 
-    return RedirectResponse(url=f"/findings?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url="/findings", status_code=303)
 
 
 @router.get("/{finding_id}/export", response_class=PlainTextResponse)
