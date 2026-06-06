@@ -1,6 +1,6 @@
 from pathlib import Path
+import uuid
 from datetime import datetime, timezone
-from urllib.parse import quote
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -68,7 +68,7 @@ async def start_session(
         session.refresh(hunt)
         hunt_id = str(hunt.id)
 
-    return RedirectResponse(url=f"/hunt/{hunt_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url=f"/hunt/{uuid.UUID(str(hunt_id))}", status_code=303)
 
 
 @router.get("/{session_id}", response_class=HTMLResponse)
@@ -116,7 +116,7 @@ async def update_notes(
         hunt.notes = notes
         session.commit()
         safe_id = str(hunt.id)
-    return RedirectResponse(url=f"/hunt/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url=f"/hunt/{uuid.UUID(str(safe_id))}", status_code=303)
 
 
 @router.post("/{session_id}/checklist")
@@ -154,7 +154,7 @@ async def save_checklist(
         session.commit()
         safe_id = str(hunt.id)
 
-    return RedirectResponse(url=f"/hunt/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url=f"/hunt/{uuid.UUID(str(safe_id))}", status_code=303)
 
 
 @router.post("/{session_id}/status")
@@ -178,4 +178,4 @@ async def update_status(
             hunt.ended_at = datetime.now(timezone.utc)
         session.commit()
         safe_id = str(hunt.id)
-    return RedirectResponse(url=f"/hunt/{safe_id}?api_key={quote(api_key, safe='')}", status_code=303)
+    return RedirectResponse(url=f"/hunt/{uuid.UUID(str(safe_id))}", status_code=303)
