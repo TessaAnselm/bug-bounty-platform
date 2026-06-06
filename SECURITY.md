@@ -45,6 +45,19 @@ Scope is enforced technically, not just by policy:
 
 ---
 
+## Dashboard Authentication
+
+The dashboard is protected by a single high-entropy API key, but the key itself
+is never carried around the app — a session-token model isolates it:
+
+- **Hash at rest** — only the SHA-256 hash of the key is stored (`DASHBOARD_API_KEY` in `.env`); the plaintext is never persisted. Empty/unset hash fails closed (the dashboard is locked, never open).
+- **Signed session tokens** — at login the key is verified once, then the server issues an HMAC-SHA256-signed, 7-day-expiring token (`src/api/auth.py`). The `bounty_session` cookie holds the token, **not** the key. A stolen cookie expires and is not the master key. Tokens are stateless, so they survive a restart without a session store.
+- **No credential in URLs/logs/history** — page links and forms carry nothing sensitive; the cookie travels automatically on same-origin requests. This removes the earlier pattern where the raw key was appended to every link and written into access logs.
+- **Constant-time comparison** — key and token checks use `hmac.compare_digest` (no timing oracle).
+- **Cookie flags** — `HttpOnly` (no JS access) and `SameSite=Strict` (no cross-site sends). Set `COOKIE_SECURE=true` to add the `Secure` flag once served over HTTPS.
+- **Programmatic access** — curl/scripts authenticate per request with the raw key via `X-API-Key` header or `?api_key=` query param.
+- **Loopback only** — the dashboard binds to `127.0.0.1`; it is not reachable from the network.
+
 ## Secrets Management
 
 - All credentials live in `.env` (gitignored — never committed)
