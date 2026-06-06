@@ -75,7 +75,7 @@ async def toggle_interesting(
         if asset:
             asset.interesting = not asset.interesting
             session.commit()
-    return RedirectResponse(url=f"/triage?api_key={api_key}", status_code=303)
+    return RedirectResponse(url="/triage", status_code=303)
 
 
 @router.post("/{asset_id}/tags")
@@ -92,4 +92,4 @@ async def update_tags(
         if asset:
             asset.tags = tag_list
             session.commit()
-    return RedirectResponse(url=f"/triage?api_key={api_key}", status_code=303)
+    return RedirectResponse(url="/triage", status_code=303)
