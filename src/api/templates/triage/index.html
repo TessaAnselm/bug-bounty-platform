@@ -7,7 +7,6 @@
 </div>
 
 <form class="filters" method="get">
-  <input type="hidden" name="api_key" value="{{ api_key }}">
 
   <select name="program_id" onchange="this.form.submit()">
     <option value="">All programs</option>
@@ -71,7 +70,7 @@
     </td>
 
     <td>
-      <a href="/assets/{{ a.id }}?api_key={{ api_key }}">{{ a.value }}</a>
+      <a href="/assets/{{ a.id }}">{{ a.value }}</a>
       {% if a.is_new %}<span class="badge badge-new" style="font-size:10px">NEW</span>{% endif %}
       {% if a.interesting %}<span style="color: gold"> ★</span>{% endif %}
     </td>
@@ -94,13 +93,11 @@
 
     <td style="display: flex; gap: 0.35rem;">
       <form method="post" action="/triage/{{ a.id }}/flag" style="display:inline;">
-        <input type="hidden" name="api_key" value="{{ api_key }}">
         <button type="submit" class="btn btn-sm" title="Toggle interesting flag">
           {% if a.interesting %}★{% else %}☆{% endif %}
         </button>
       </form>
       <form method="post" action="/hunt/start" style="display:inline;">
-        <input type="hidden" name="api_key" value="{{ api_key }}">
         <input type="hidden" name="asset_id" value="{{ a.id }}">
         <button type="submit" class="btn btn-sm" title="Start hunt session on this asset">Hunt →</button>
       </form>
