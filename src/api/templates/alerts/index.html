@@ -6,7 +6,6 @@
   {% set unseen = alerts | selectattr("seen", "equalto", false) | list %}
   {% if unseen %}
   <form method="post" action="/alerts/seen-all">
-    <input type="hidden" name="api_key" value="{{ api_key }}">
     <button type="submit" class="btn btn-sm">Mark all seen ({{ unseen|length }})</button>
   </form>
   {% endif %}
@@ -25,7 +24,6 @@
     </div>
     {% if not a.seen %}
     <form method="post" action="/alerts/{{ a.id }}/seen">
-      <input type="hidden" name="api_key" value="{{ api_key }}">
       <button type="submit" class="btn btn-sm">✓</button>
     </form>
     {% endif %}
