@@ -27,10 +27,10 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 ![Hunt Session](docs/screenshots/hunt_session.png)
 
 **Finding Pipeline — kanban by status**
-<!-- ![Finding Pipeline](docs/screenshots/findings.png) -->
+![Hunt Session](docs/screenshots/findings.png)
 
 **Asset Detail — notes, findings, tech stack**
-<!-- ![Asset Detail](docs/screenshots/asset_detail.png) -->
+![Hunt Session](docs/screenshots/asset.png)
 
 ---
 
