@@ -23,6 +23,9 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 **Triage Queue — assets ranked by risk score**
 <!-- ![Triage Queue](docs/screenshots/triage.png) -->
 
+**Hunt Session — methodology checklist auto-loaded by asset tag, with progress tracking**
+![Hunt Session](docs/screenshots/hunt_session.png)
+
 **Finding Pipeline — kanban by status**
 <!-- ![Finding Pipeline](docs/screenshots/findings.png) -->
 
@@ -150,13 +153,13 @@ If you run recon tools externally (OSINT platforms, Kali VM), import results dir
 python scripts/import_recon.py --list
 
 # Import a file (format auto-detected: subfinder, httpx, katana, plain text)
-python scripts/import_recon.py --program "Kong" --file subfinder.json
+python scripts/import_recon.py --program "<PROGRAM NAME>" --file subfinder.json
 
 # Dry run first to preview what would be imported
-python scripts/import_recon.py --program "Kong" --file results.json --dry-run
+python scripts/import_recon.py --program "<PROGRAM NAME>" --file results.json --dry-run
 
 # Import a whole directory
-python scripts/import_recon.py --program "Kong" --dir /shared/recon/
+python scripts/import_recon.py --program "<PROGRAM NAME>" --dir /shared/recon/
 ```
 
 ---
