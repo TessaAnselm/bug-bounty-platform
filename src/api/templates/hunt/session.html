@@ -89,7 +89,7 @@
       <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.4rem;">
         {{ section.title }}
       </div>
-      {% for item in section.items %}
+      {% for item in section['items'] %}
       <label style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.3rem; cursor: pointer; font-size: 13px; {% if item.checked %}color: var(--text-muted); text-decoration: line-through;{% endif %}">
         <input type="checkbox"
                name="check_{{ cl.slug }}_{{ item.index }}"
