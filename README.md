@@ -21,7 +21,7 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 ![Workflow Health](docs/screenshots/workflow_health.png)
 
 **Triage Queue — assets ranked by risk score**
-<!-- ![Triage Queue](docs/screenshots/triage.png) -->
+![Triage](docs/screenshots/triage.png)
 
 **Hunt Session — methodology checklist auto-loaded by asset tag, with progress tracking**
 ![Hunt Session](docs/screenshots/hunt_session.png)
