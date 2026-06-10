@@ -8,6 +8,7 @@ from src.db.models.outcome import Outcome
 from src.db.models.program_score import ProgramScore
 from src.db.models.artifact import Artifact
 from src.db.models.hunt_session import HuntSession, HuntStatus
+from src.db.models.http_exchange import HttpExchange
 
 __all__ = [
     "Program", "ProgramStatus",
@@ -20,4 +21,5 @@ __all__ = [
     "ProgramScore",
     "Artifact",
     "HuntSession", "HuntStatus",
+    "HttpExchange",
 ]
