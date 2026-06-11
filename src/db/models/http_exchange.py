@@ -1,5 +1,5 @@
 from uuid import uuid4
-from sqlalchemy import Column, Text, Integer, DateTime, ForeignKey
+from sqlalchemy import Column, Text, Integer, Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -19,6 +19,10 @@ class HttpExchange(Base):
     hunt_session_id = Column(UUID(as_uuid=True), ForeignKey("hunt_sessions.id"), nullable=True)
     program_id = Column(UUID(as_uuid=True), ForeignKey("programs.id"), nullable=False)
     asset_id = Column(UUID(as_uuid=True), ForeignKey("assets.id"), nullable=True)
+    # Set when this exchange is saved as evidence and attached to a finding;
+    # the report exporter pulls these (redacted) into the submission.
+    finding_id = Column(UUID(as_uuid=True), ForeignKey("findings.id"), nullable=True)
+    is_evidence = Column(Boolean, nullable=False, default=False)
 
     request_method = Column(Text, nullable=False)
     request_url = Column(Text, nullable=False)

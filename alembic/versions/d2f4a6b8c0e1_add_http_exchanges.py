@@ -22,6 +22,8 @@ def upgrade() -> None:
         sa.Column('hunt_session_id', UUID(as_uuid=True), sa.ForeignKey('hunt_sessions.id'), nullable=True),
         sa.Column('program_id', UUID(as_uuid=True), sa.ForeignKey('programs.id'), nullable=False),
         sa.Column('asset_id', UUID(as_uuid=True), sa.ForeignKey('assets.id'), nullable=True),
+        sa.Column('finding_id', UUID(as_uuid=True), sa.ForeignKey('findings.id'), nullable=True),
+        sa.Column('is_evidence', sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column('request_method', sa.Text(), nullable=False),
         sa.Column('request_url', sa.Text(), nullable=False),
         sa.Column('request_headers', JSONB(), nullable=False, server_default='{}'),
@@ -36,9 +38,11 @@ def upgrade() -> None:
     )
     op.create_index('ix_http_exchanges_hunt_session_id', 'http_exchanges', ['hunt_session_id'])
     op.create_index('ix_http_exchanges_program_id', 'http_exchanges', ['program_id'])
+    op.create_index('ix_http_exchanges_finding_id', 'http_exchanges', ['finding_id'])
 
 
 def downgrade() -> None:
+    op.drop_index('ix_http_exchanges_finding_id', table_name='http_exchanges')
     op.drop_index('ix_http_exchanges_hunt_session_id', table_name='http_exchanges')
     op.drop_index('ix_http_exchanges_program_id', table_name='http_exchanges')
     op.drop_table('http_exchanges')
