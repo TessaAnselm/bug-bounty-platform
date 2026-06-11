@@ -10,6 +10,7 @@ from src.mcp.resources.alerts import get_unseen_alerts
 from src.mcp.resources.notes import list_notes_for_program, list_notes_for_asset
 from src.mcp.resources.recon_runs import get_latest_recon, get_recon_history
 from src.mcp.resources.scores import get_ranked_programs, get_program_score
+from src.mcp.resources.exchanges import list_exchanges_for_session
 from src.mcp.tools.search import search_assets, summarize_program
 
 server = Server("bug-bounty")
@@ -101,6 +102,11 @@ async def read_resource(uri: types.AnyUrl) -> str:
     if uri_str.startswith("bounty://findings/status/"):
         status = uri_str.removeprefix("bounty://findings/status/")
         return list_findings_by_status(status)
+
+    # bounty://hunt/{session_id}/exchanges — Repeater request/response log (redacted)
+    if uri_str.startswith("bounty://hunt/") and uri_str.endswith("/exchanges"):
+        session_id = uri_str.removeprefix("bounty://hunt/").removesuffix("/exchanges")
+        return list_exchanges_for_session(session_id)
 
     return '{"error": "Unknown resource URI"}'
 

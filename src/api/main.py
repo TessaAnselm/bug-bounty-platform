@@ -17,7 +17,7 @@ from src.api.auth import (
     SESSION_COOKIE,
     SESSION_MAX_AGE,
 )
-from src.api.routers import programs, assets, findings, alerts, notes, health, triage, hunt
+from src.api.routers import programs, assets, findings, alerts, notes, health, triage, hunt, repeater
 
 load_dotenv()
 
@@ -70,6 +70,7 @@ app.include_router(notes.router)
 app.include_router(health.router)
 app.include_router(triage.router)
 app.include_router(hunt.router)
+app.include_router(repeater.router)
 
 
 @app.middleware("http")
