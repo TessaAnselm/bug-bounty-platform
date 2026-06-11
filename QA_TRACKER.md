@@ -100,6 +100,25 @@ This checklist tracks whether BountyOS is safe, reliable, and ready to use on au
 - [ ] Optional OSINT API keys skip cleanly when absent.
 - [ ] Tool failures are visible in logs or dashboard health.
 
+## Repeater
+
+- [x] SSRF guard blocks loopback, private, link-local, missing, and unresolvable hosts.
+- [x] SSRF guard blocks hostnames that resolve to private addresses.
+- [x] Repeater refuses private/blocked hosts before network send.
+- [x] Repeater refuses out-of-scope hosts before network send.
+- [x] Repeater parses request headers predictably.
+- [x] Repeater redacts sensitive request headers for MCP/AI views.
+- [x] Repeater route is registered on the FastAPI app.
+- [x] Repeater refuses unsafe request headers such as `Host`.
+- [x] Repeater caps request body and header size before network send.
+- [x] Repeater disables environment proxy use for sends.
+- [x] Repeater forces configured compliance headers over user-supplied values.
+- [x] Repeater redacts sensitive request/response body values for MCP/AI views.
+- [x] Repeater displays response headers with sensitive values redacted.
+- [ ] Repeater pins resolved IP during send or otherwise mitigates DNS rebinding.
+- [ ] Repeater send success path persists capped response body and exchange metadata.
+- [ ] Repeater rate limiter is tested without sleeping.
+
 ## Startup And Operations
 
 - [ ] `scripts/start.sh` verifies Docker is running.
