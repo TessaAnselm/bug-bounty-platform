@@ -26,11 +26,14 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 **Hunt Session — methodology checklist auto-loaded by asset tag, with progress tracking**
 ![Hunt Session](docs/screenshots/hunt_session.png)
 
+**Repeater — compliant in-platform request sender: scope-checked, rate-limited, and auto-applies required compliance headers**
+![Repeater](docs/screenshots/repeater.png)
+
 **Finding Pipeline — kanban by status**
-![Hunt Session](docs/screenshots/findings.png)
+![Finding Pipeline](docs/screenshots/findings.png)
 
 **Asset Detail — notes, findings, tech stack**
-![Hunt Session](docs/screenshots/asset_detail.png)
+![Asset Detail](docs/screenshots/asset_detail.png)
 
 ---
 
