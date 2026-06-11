@@ -55,6 +55,27 @@
 {% endfor %}</pre>
   </details>
   <pre style="background:var(--bg); border:1px solid var(--border); padding:0.6rem; overflow:auto; max-height:420px; font-size:12px;">{{ response.body }}</pre>
+
+  <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+    <span style="font-size:12px; color:var(--text-muted);">Save as evidence:</span>
+    {% if findings %}
+    <form method="post" action="/repeater/attach" style="display:flex; gap:0.35rem; align-items:center;">
+      <input type="hidden" name="hunt_session_id" value="{{ session_id }}">
+      <input type="hidden" name="exchange_id" value="{{ response.exchange_id }}">
+      <select name="finding_id" class="form-select" title="Finding to attach this request to">
+        {% for f in findings %}
+        <option value="{{ f.id }}">{{ f.title }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm">Attach to finding</button>
+    </form>
+    {% endif %}
+    <form method="post" action="/repeater/new-finding" style="display:inline;">
+      <input type="hidden" name="hunt_session_id" value="{{ session_id }}">
+      <input type="hidden" name="exchange_id" value="{{ response.exchange_id }}">
+      <button type="submit" class="btn btn-sm">+ New finding from this request</button>
+    </form>
+  </div>
 </div>
 {% endif %}
 

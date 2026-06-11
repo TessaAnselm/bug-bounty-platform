@@ -10,20 +10,21 @@ Every send is guarded before it leaves the host:
 Each exchange is stored for evidence and MCP/AI review.
 """
 import time
+import uuid
 import asyncio
 from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from src.api.auth import verify_api_key
 from src.db.session import engine
-from src.db.models import HuntSession, Program, HttpExchange
+from src.db.models import HuntSession, Program, HttpExchange, Finding, Severity, FindingStatus
 from src.activities.storage.scope import validate_target
 from src.lib.compliance import (
     compliance_headers,
@@ -91,7 +92,16 @@ def _load_history(s: Session, session_id: str) -> list[dict]:
     return [_exchange_dict(e) for e in rows]
 
 
-def _render(request, session_id, program_info, history, *, form, response=None, error=None, api_key=""):
+def _load_findings(s: Session, program_id: str) -> list[dict]:
+    rows = s.execute(
+        select(Finding)
+        .where(Finding.program_id == program_id)
+        .order_by(Finding.created_at.desc())
+    ).scalars().all()
+    return [{"id": str(f.id), "title": f.title} for f in rows]
+
+
+def _render(request, session_id, program_info, history, *, form, response=None, error=None, findings=None, api_key=""):
     return templates.TemplateResponse("repeater/index.html", {
         "request": request,
         "api_key": api_key,
@@ -102,6 +112,7 @@ def _render(request, session_id, program_info, history, *, form, response=None, 
         "form": form,
         "response": response,
         "error": error,
+        "findings": findings or [],
     })
 
 
@@ -119,6 +130,7 @@ async def repeater_page(
         program = s.get(Program, hunt.program_id)
         program_info = {"id": str(program.id), "name": program.name, "platform": program.platform or ""}
         history = _load_history(s, session)
+        findings = _load_findings(s, str(program.id))
         form = {"method": "GET", "url": "", "headers": "", "body": "", "label": ""}
         if from_id:
             ex = s.get(HttpExchange, from_id)
@@ -130,7 +142,7 @@ async def repeater_page(
                     "body": ex.request_body or "",
                     "label": ex.label or "",
                 }
-        return _render(request, session, program_info, history, form=form, api_key=api_key)
+        return _render(request, session, program_info, history, form=form, findings=findings, api_key=api_key)
 
 
 @router.post("/send", response_class=HTMLResponse)
@@ -167,7 +179,8 @@ async def send_request(
     def render(resp=None, error=None):
         with Session(engine) as s:
             history = _load_history(s, hunt_session_id)
-        return _render(request, hunt_session_id, program_info, history, form=form, response=resp, error=error, api_key=api_key)
+            findings = _load_findings(s, prog_id)
+        return _render(request, hunt_session_id, program_info, history, form=form, response=resp, error=error, findings=findings, api_key=api_key)
 
     # --- guards (fail before any request leaves the host) ---
     if method not in _ALLOWED_METHODS:
@@ -246,3 +259,57 @@ async def send_request(
         "body": resp_body,
         "exchange_id": ex_id,
     })
+
+
+@router.post("/attach", response_class=HTMLResponse)
+async def attach_to_finding(
+    request: Request,
+    hunt_session_id: str = Form(...),
+    exchange_id: str = Form(...),
+    finding_id: str = Form(...),
+    api_key: str = Depends(verify_api_key),
+):
+    """Attach an exchange to an existing finding as evidence (same program only)."""
+    target = None
+    with Session(engine) as s:
+        ex = s.get(HttpExchange, exchange_id)
+        finding = s.get(Finding, finding_id)
+        if ex and finding and str(ex.program_id) == str(finding.program_id):
+            ex.finding_id = finding.id
+            ex.is_evidence = True
+            s.commit()
+            target = str(finding.id)
+    if target:
+        return RedirectResponse(url=f"/findings/{uuid.UUID(target)}", status_code=303)
+    return RedirectResponse(url=f"/repeater?session={uuid.UUID(hunt_session_id)}", status_code=303)
+
+
+@router.post("/new-finding", response_class=HTMLResponse)
+async def new_finding_from_exchange(
+    request: Request,
+    hunt_session_id: str = Form(...),
+    exchange_id: str = Form(...),
+    api_key: str = Depends(verify_api_key),
+):
+    """Create a draft finding seeded from this request and attach it as evidence."""
+    fid = None
+    with Session(engine) as s:
+        ex = s.get(HttpExchange, exchange_id)
+        if ex:
+            finding = Finding(
+                program_id=ex.program_id,
+                asset_id=ex.asset_id,
+                title=f"{ex.request_method} {ex.request_url}"[:120],
+                vuln_type="(set vuln type)",
+                severity=Severity.medium,
+                status=FindingStatus.draft,
+            )
+            s.add(finding)
+            s.flush()
+            ex.finding_id = finding.id
+            ex.is_evidence = True
+            s.commit()
+            fid = str(finding.id)
+    if fid:
+        return RedirectResponse(url=f"/findings/{uuid.UUID(fid)}", status_code=303)
+    return RedirectResponse(url=f"/repeater?session={uuid.UUID(hunt_session_id)}", status_code=303)
