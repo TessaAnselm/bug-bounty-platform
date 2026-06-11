@@ -92,12 +92,13 @@ def _load_history(s: Session, session_id: str) -> list[dict]:
     return [_exchange_dict(e) for e in rows]
 
 
-def _load_findings(s: Session, program_id: str) -> list[dict]:
-    rows = s.execute(
-        select(Finding)
-        .where(Finding.program_id == program_id)
-        .order_by(Finding.created_at.desc())
-    ).scalars().all()
+def _load_findings(s: Session, program_id: str, asset_id=None) -> list[dict]:
+    q = select(Finding).where(Finding.program_id == program_id)
+    if asset_id:
+        # Only offer findings for this asset (or asset-less ones), so a request
+        # can't be attached to a finding belonging to a different asset.
+        q = q.where((Finding.asset_id == asset_id) | (Finding.asset_id.is_(None)))
+    rows = s.execute(q.order_by(Finding.created_at.desc())).scalars().all()
     return [{"id": str(f.id), "title": f.title} for f in rows]
 
 
@@ -130,7 +131,7 @@ async def repeater_page(
         program = s.get(Program, hunt.program_id)
         program_info = {"id": str(program.id), "name": program.name, "platform": program.platform or ""}
         history = _load_history(s, session)
-        findings = _load_findings(s, str(program.id))
+        findings = _load_findings(s, str(program.id), str(hunt.asset_id) if hunt.asset_id else None)
         form = {"method": "GET", "url": "", "headers": "", "body": "", "label": ""}
         if from_id:
             ex = s.get(HttpExchange, from_id)
@@ -179,7 +180,7 @@ async def send_request(
     def render(resp=None, error=None):
         with Session(engine) as s:
             history = _load_history(s, hunt_session_id)
-            findings = _load_findings(s, prog_id)
+            findings = _load_findings(s, prog_id, asset_id)
         return _render(request, hunt_session_id, program_info, history, form=form, response=resp, error=error, findings=findings, api_key=api_key)
 
     # --- guards (fail before any request leaves the host) ---
@@ -202,16 +203,19 @@ async def send_request(
     if blocked_headers:
         return render(error=f"Blocked request header(s): {', '.join(blocked_headers)}")
 
-    # --- compliance: per-program rate limit + required headers ---
+    # --- compliance: validate the required header BEFORE touching throttle state ---
+    # A rejected request must not consume the rate-limit slot or trigger a sleep.
+    required_headers = compliance_headers(platform)
+    if platform == "hackerone" and not required_headers:
+        return render(error="HackerOne requests require HACKERONE_RESEARCH_USERNAME to be configured.")
+
+    # --- per-program rate limit ---
     interval = min_send_interval(constraints, _DEFAULT_RPS)
     wait = interval - (time.monotonic() - _last_send.get(prog_id, 0.0))
     if wait > 0:
         await asyncio.sleep(wait)
     _last_send[prog_id] = time.monotonic()
 
-    required_headers = compliance_headers(platform)
-    if platform == "hackerone" and not required_headers:
-        return render(error="HackerOne requests require HACKERONE_RESEARCH_USERNAME to be configured.")
     for k, v in required_headers.items():
         req_headers[k] = v
 
@@ -264,31 +268,38 @@ async def send_request(
 @router.post("/attach", response_class=HTMLResponse)
 async def attach_to_finding(
     request: Request,
-    hunt_session_id: str = Form(...),
-    exchange_id: str = Form(...),
-    finding_id: str = Form(...),
+    hunt_session_id: uuid.UUID = Form(...),
+    exchange_id: uuid.UUID = Form(...),
+    finding_id: uuid.UUID = Form(...),
     api_key: str = Depends(verify_api_key),
 ):
-    """Attach an exchange to an existing finding as evidence (same program only)."""
+    """Attach an exchange to an existing finding as evidence.
+
+    Same program, and same asset when the finding is tied to one. UUID-typed
+    form fields make malformed IDs a 422, not a 500.
+    """
     target = None
     with Session(engine) as s:
         ex = s.get(HttpExchange, exchange_id)
         finding = s.get(Finding, finding_id)
-        if ex and finding and str(ex.program_id) == str(finding.program_id):
+        if (ex and finding and str(ex.program_id) == str(finding.program_id)
+                and (finding.asset_id is None or str(ex.asset_id) == str(finding.asset_id))):
             ex.finding_id = finding.id
             ex.is_evidence = True
             s.commit()
-            target = str(finding.id)
+            target = finding.id
+    # IDs are validated UUIDs (FastAPI typing); re-wrap is Snyk's sanitizer and
+    # cannot raise here.
     if target:
-        return RedirectResponse(url=f"/findings/{uuid.UUID(target)}", status_code=303)
-    return RedirectResponse(url=f"/repeater?session={uuid.UUID(hunt_session_id)}", status_code=303)
+        return RedirectResponse(url=f"/findings/{uuid.UUID(str(target))}", status_code=303)
+    return RedirectResponse(url=f"/repeater?session={uuid.UUID(str(hunt_session_id))}", status_code=303)
 
 
 @router.post("/new-finding", response_class=HTMLResponse)
 async def new_finding_from_exchange(
     request: Request,
-    hunt_session_id: str = Form(...),
-    exchange_id: str = Form(...),
+    hunt_session_id: uuid.UUID = Form(...),
+    exchange_id: uuid.UUID = Form(...),
     api_key: str = Depends(verify_api_key),
 ):
     """Create a draft finding seeded from this request and attach it as evidence."""
@@ -309,7 +320,7 @@ async def new_finding_from_exchange(
             ex.finding_id = finding.id
             ex.is_evidence = True
             s.commit()
-            fid = str(finding.id)
+            fid = finding.id
     if fid:
-        return RedirectResponse(url=f"/findings/{uuid.UUID(fid)}", status_code=303)
-    return RedirectResponse(url=f"/repeater?session={uuid.UUID(hunt_session_id)}", status_code=303)
+        return RedirectResponse(url=f"/findings/{uuid.UUID(str(fid))}", status_code=303)
+    return RedirectResponse(url=f"/repeater?session={uuid.UUID(str(hunt_session_id))}", status_code=303)

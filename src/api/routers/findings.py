@@ -62,26 +62,33 @@ async def finding_detail(finding_id: str, request: Request, api_key: str = Depen
             .order_by(Outcome.recorded_at.desc())
         ).scalars().all()
 
-        # Evidence already attached to this finding (rendered into the report)…
+        # Evidence attached to this finding — uses the SAME predicate the exporter
+        # uses (finding_id + is_evidence) so the UI never implies something will be
+        # exported when it won't.
         evidence = [
             {"id": str(e.id), "method": e.request_method, "url": e.request_url,
              "status": e.response_status, "label": e.label}
             for e in session.execute(
                 select(HttpExchange)
-                .where(HttpExchange.finding_id == finding_id)
+                .where(HttpExchange.finding_id == finding_id,
+                       HttpExchange.is_evidence.is_(True))
                 .order_by(HttpExchange.created_at)
             ).scalars().all()
         ]
-        # …and unattached exchanges from the same program you can add as evidence.
+        # Unattached exchanges you can add — scoped to the finding's asset when it
+        # has one, so evidence from a different asset can't be attached by mistake.
+        avail_q = (
+            select(HttpExchange)
+            .where(HttpExchange.program_id == finding.program_id,
+                   HttpExchange.finding_id.is_(None))
+        )
+        if finding.asset_id is not None:
+            avail_q = avail_q.where(HttpExchange.asset_id == finding.asset_id)
         available = [
             {"id": str(e.id), "method": e.request_method, "url": e.request_url,
              "status": e.response_status, "label": e.label}
             for e in session.execute(
-                select(HttpExchange)
-                .where(HttpExchange.program_id == finding.program_id,
-                       HttpExchange.finding_id.is_(None))
-                .order_by(HttpExchange.created_at.desc())
-                .limit(50)
+                avail_q.order_by(HttpExchange.created_at.desc()).limit(50)
             ).scalars().all()
         ]
 
@@ -101,29 +108,36 @@ async def finding_detail(finding_id: str, request: Request, api_key: str = Depen
 
 @router.post("/{finding_id}/evidence/attach")
 async def attach_evidence(
-    finding_id: str,
+    finding_id: uuid.UUID,
     request: Request,
-    exchange_id: str = Form(...),
+    exchange_id: uuid.UUID = Form(...),
     api_key: str = Depends(verify_api_key),
 ):
-    """Attach a Repeater exchange to this finding as evidence (same program only)."""
+    """Attach a Repeater exchange to this finding as evidence.
+
+    Requires the same program, and the same asset when the finding is tied to one,
+    so evidence from a different asset cannot end up in the report. UUID-typed
+    params make malformed IDs a 422, not a 500.
+    """
     with Session(engine) as session:
         finding = session.get(Finding, finding_id)
         if not finding:
             return HTMLResponse("Finding not found", status_code=404)
         ex = session.get(HttpExchange, exchange_id)
-        if ex and str(ex.program_id) == str(finding.program_id):
-            ex.finding_id = finding_id
+        if (ex and str(ex.program_id) == str(finding.program_id)
+                and (finding.asset_id is None or str(ex.asset_id) == str(finding.asset_id))):
+            ex.finding_id = finding.id
             ex.is_evidence = True
             session.commit()
-        safe_id = str(finding.id)
-    return RedirectResponse(url=f"/findings/{uuid.UUID(str(safe_id))}", status_code=303)
+    # finding_id is already a validated UUID (FastAPI typing); the re-wrap is the
+    # sanitizer Snyk recognizes and cannot raise here.
+    return RedirectResponse(url=f"/findings/{uuid.UUID(str(finding_id))}", status_code=303)
 
 
 @router.post("/{finding_id}/evidence/{exchange_id}/detach")
 async def detach_evidence(
-    finding_id: str,
-    exchange_id: str,
+    finding_id: uuid.UUID,
+    exchange_id: uuid.UUID,
     request: Request,
     api_key: str = Depends(verify_api_key),
 ):
@@ -252,7 +266,7 @@ async def update_finding_status(
 async def export_finding(
     finding_id: str,
     request: Request,
-    fmt: str = Query("markdown", regex="^(markdown|hackerone|bugcrowd)$"),
+    fmt: str = Query("markdown", pattern="^(markdown|hackerone|bugcrowd)$"),
     api_key: str = Depends(verify_api_key),
 ):
     with Session(engine) as session:
