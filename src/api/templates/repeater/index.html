@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1rem;">
+  <h1 style="margin:0;">Repeater</h1>
+  <a href="/hunt/{{ session_id }}" class="btn btn-sm">← Back to hunt session</a>
+</div>
+
+<div style="color:var(--text-muted); font-size:13px; margin-bottom:1rem;">
+  {{ program.name }} · platform <code>{{ program.platform }}</code>
+  — requests are scope-checked, rate-limited, and compliance-headers applied automatically.
+</div>
+
+{% if error %}
+<div style="background:#3a1112; border:1px solid #7f1d1d; color:#fca5a5; padding:0.6rem 0.8rem; border-radius:4px; margin-bottom:1rem; font-size:13px;">
+  ⛔ {{ error }}
+</div>
+{% endif %}
+
+<form method="post" action="/repeater/send" style="margin-bottom:1.5rem;">
+  <input type="hidden" name="hunt_session_id" value="{{ session_id }}">
+
+  <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+    <select name="method" style="flex:0 0 110px;" title="HTTP method">
+      {% for m in ["GET","POST","PUT","PATCH","DELETE","HEAD","OPTIONS"] %}
+      <option value="{{ m }}" {% if form.method == m %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="url" value="{{ form.url }}" placeholder="https://api.example.com/v1/resource/123"
+           style="flex:1; font-family:monospace;" autofocus>
+  </div>
+
+  <label style="font-size:12px; color:var(--text-muted);">Headers (one per line, <code>Key: Value</code>)</label>
+  <textarea name="headers" rows="4" style="width:100%; box-sizing:border-box; font-family:monospace; margin-bottom:0.5rem;">{{ form.headers }}</textarea>
+
+  <label style="font-size:12px; color:var(--text-muted);">Body</label>
+  <textarea name="body" rows="5" style="width:100%; box-sizing:border-box; font-family:monospace; margin-bottom:0.5rem;">{{ form.body }}</textarea>
+
+  <div style="display:flex; gap:0.5rem; align-items:center;">
+    <input type="text" name="label" value="{{ form.label }}" placeholder="label (e.g. acct A baseline)" style="flex:1;">
+    <button type="submit" class="btn">Send</button>
+  </div>
+</form>
+
+{% if response %}
+<div style="margin-bottom:1.5rem;">
+  <div style="font-size:14px; margin-bottom:0.4rem;">
+    Response —
+    <strong>{{ response.status }}</strong>
+    · {{ response.time_ms }} ms
+  </div>
+  <details style="margin-bottom:0.5rem;">
+    <summary style="cursor:pointer; font-size:12px; color:var(--text-muted);">Response headers</summary>
+    <pre style="background:var(--bg); border:1px solid var(--border); padding:0.6rem; overflow:auto; font-size:12px;">{% for k, v in response.headers.items() %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+  </details>
+  <pre style="background:var(--bg); border:1px solid var(--border); padding:0.6rem; overflow:auto; max-height:420px; font-size:12px;">{{ response.body }}</pre>
+</div>
+{% endif %}
+
+<h2 style="font-size:15px;">History</h2>
+{% if history %}
+<table style="width:100%; font-size:13px;">
+  <thead>
+    <tr style="text-align:left; color:var(--text-muted);">
+      <th>When</th><th>Method</th><th>URL</th><th>Status</th><th>Label</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ex in history %}
+    <tr>
+      <td style="color:var(--text-muted);">{{ ex.created_at.strftime("%m-%d %H:%M") if ex.created_at else "" }}</td>
+      <td><code>{{ ex.method }}</code></td>
+      <td style="font-family:monospace; max-width:520px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ ex.url }}</td>
+      <td>{{ ex.status if ex.status is not none else "—" }}</td>
+      <td style="color:var(--text-muted);">{{ ex.label or "" }}</td>
+      <td><a href="/repeater?session={{ session_id }}&from_id={{ ex.id }}" class="btn btn-sm">Load</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div style="color:var(--text-muted); font-size:13px;">No requests sent yet.</div>
+{% endif %}
+
+{% endblock %}

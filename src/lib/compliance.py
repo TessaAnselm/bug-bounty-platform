@@ -8,6 +8,7 @@ Centralizing them here keeps enforcement identical across features.
 """
 import ipaddress
 import os
+import re
 import socket
 from urllib.parse import urlparse
 
@@ -17,6 +18,15 @@ HACKERONE_RESEARCH_USERNAME = os.getenv("HACKERONE_RESEARCH_USERNAME", "").strip
 
 # Headers we never expose outside the DB (e.g. to the MCP/AI view).
 _SENSITIVE_HEADERS = {"cookie", "authorization", "x-api-key", "set-cookie", "proxy-authorization"}
+
+_SECRET_VALUE_PATTERNS = [
+    re.compile(
+        r'(?i)("?(?:access_token|refresh_token|id_token|api[_-]?key|csrf(?:_token)?|'
+        r'authenticity_token|password|passwd|secret|session|token)"?\s*[:=]\s*)'
+        r'(["\']?)[^&\s,"\'}]+(\2)'
+    ),
+    re.compile(r"(?i)(bearer\s+)[a-z0-9._~+/=-]+"),
+]
 
 
 def compliance_headers(platform: str) -> dict[str, str]:
@@ -104,3 +114,18 @@ def redact_headers(headers: dict | None) -> dict:
         k: ("<redacted>" if k.lower() in _SENSITIVE_HEADERS else v)
         for k, v in (headers or {}).items()
     }
+
+
+def redact_text(text: str | None) -> str | None:
+    """Best-effort redaction for request/response bodies before MCP/AI exposure.
+
+    This is intentionally conservative and pattern-based. It will not catch every
+    secret shape, but it removes common token/password/API-key forms from JSON,
+    form-encoded, and plain text excerpts.
+    """
+    if text is None:
+        return None
+    redacted = text
+    for pattern in _SECRET_VALUE_PATTERNS:
+        redacted = pattern.sub(r"\1<redacted>", redacted)
+    return redacted
