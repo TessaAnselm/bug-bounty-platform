@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from src.api.auth import verify_api_key
 from src.db.session import engine
-from src.db.models import Finding, Program, Asset, FindingStatus, Outcome
+from src.db.models import Finding, Program, Asset, FindingStatus, Outcome, HttpExchange
 from src.activities.reporting.exporter import export_markdown, export_hackerone, export_bugcrowd
 
 router = APIRouter(prefix="/findings", tags=["findings"])
@@ -62,16 +62,79 @@ async def finding_detail(finding_id: str, request: Request, api_key: str = Depen
             .order_by(Outcome.recorded_at.desc())
         ).scalars().all()
 
+        # Evidence already attached to this finding (rendered into the report)…
+        evidence = [
+            {"id": str(e.id), "method": e.request_method, "url": e.request_url,
+             "status": e.response_status, "label": e.label}
+            for e in session.execute(
+                select(HttpExchange)
+                .where(HttpExchange.finding_id == finding_id)
+                .order_by(HttpExchange.created_at)
+            ).scalars().all()
+        ]
+        # …and unattached exchanges from the same program you can add as evidence.
+        available = [
+            {"id": str(e.id), "method": e.request_method, "url": e.request_url,
+             "status": e.response_status, "label": e.label}
+            for e in session.execute(
+                select(HttpExchange)
+                .where(HttpExchange.program_id == finding.program_id,
+                       HttpExchange.finding_id.is_(None))
+                .order_by(HttpExchange.created_at.desc())
+                .limit(50)
+            ).scalars().all()
+        ]
+
     return templates.TemplateResponse("findings/detail.html", {
         "request": request,
         "api_key": api_key,
         "finding": finding,
         "program": program,
         "outcomes": outcomes,
+        "evidence": evidence,
+        "available_evidence": available,
         "statuses": [s for s, _ in PIPELINE_COLUMNS],
         "outcome_results": ["accepted", "duplicate", "informative", "not_applicable", "paid"],
         "active": "findings",
     })
+
+
+@router.post("/{finding_id}/evidence/attach")
+async def attach_evidence(
+    finding_id: str,
+    request: Request,
+    exchange_id: str = Form(...),
+    api_key: str = Depends(verify_api_key),
+):
+    """Attach a Repeater exchange to this finding as evidence (same program only)."""
+    with Session(engine) as session:
+        finding = session.get(Finding, finding_id)
+        if not finding:
+            return HTMLResponse("Finding not found", status_code=404)
+        ex = session.get(HttpExchange, exchange_id)
+        if ex and str(ex.program_id) == str(finding.program_id):
+            ex.finding_id = finding_id
+            ex.is_evidence = True
+            session.commit()
+        safe_id = str(finding.id)
+    return RedirectResponse(url=f"/findings/{uuid.UUID(str(safe_id))}", status_code=303)
+
+
+@router.post("/{finding_id}/evidence/{exchange_id}/detach")
+async def detach_evidence(
+    finding_id: str,
+    exchange_id: str,
+    request: Request,
+    api_key: str = Depends(verify_api_key),
+):
+    """Remove an exchange from this finding's evidence."""
+    with Session(engine) as session:
+        ex = session.get(HttpExchange, exchange_id)
+        if ex and str(ex.finding_id) == str(finding_id):
+            ex.finding_id = None
+            ex.is_evidence = False
+            session.commit()
+    return RedirectResponse(url=f"/findings/{uuid.UUID(str(finding_id))}", status_code=303)
 
 
 @router.post("/{finding_id}/report")
@@ -198,13 +261,18 @@ async def export_finding(
             return PlainTextResponse("Finding not found", status_code=404)
         program = session.get(Program, str(finding.program_id))
         asset = session.get(Asset, str(finding.asset_id)) if finding.asset_id else None
+        evidence = session.execute(
+            select(HttpExchange)
+            .where(HttpExchange.finding_id == finding_id, HttpExchange.is_evidence.is_(True))
+            .order_by(HttpExchange.created_at)
+        ).scalars().all()
 
     exporters = {
         "markdown": export_markdown,
         "hackerone": export_hackerone,
         "bugcrowd": export_bugcrowd,
     }
-    content = exporters[fmt](finding, program, asset)
+    content = exporters[fmt](finding, program, asset, evidence)
     filename = f"{finding.title[:40].replace(' ', '_').lower()}_{fmt}.md"
 
     return PlainTextResponse(

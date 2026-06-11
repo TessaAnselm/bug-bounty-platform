@@ -80,6 +80,47 @@
   </div>
 </form>
 
+{# ── Evidence (Repeater exchanges) ───────────────────────────────────── #}
+<div class="card" style="margin-bottom: 1rem;">
+  <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Evidence — attached requests (rendered into the exported report, secrets redacted)</div>
+
+  {% if evidence %}
+  <table style="width:100%; font-size:13px; margin-bottom:1rem;">
+    <thead><tr style="text-align:left; color:var(--text-muted);"><th>Method</th><th>URL</th><th>Status</th><th>Label</th><th></th></tr></thead>
+    <tbody>
+      {% for e in evidence %}
+      <tr>
+        <td><code>{{ e.method }}</code></td>
+        <td style="font-family:monospace; max-width:460px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ e.url }}</td>
+        <td>{{ e.status if e.status is not none else "—" }}</td>
+        <td style="color:var(--text-muted);">{{ e.label or "" }}</td>
+        <td>
+          <form method="post" action="/findings/{{ finding.id }}/evidence/{{ e.id }}/detach" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-danger">Detach</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="color:var(--text-muted); font-size:13px; margin-bottom:1rem;">No evidence attached yet. Send requests in the Repeater, then add them here.</div>
+  {% endif %}
+
+  {% if available_evidence %}
+  <form method="post" action="/findings/{{ finding.id }}/evidence/attach" style="display:flex; gap:0.5rem; align-items:center;">
+    <select name="exchange_id" class="form-select" style="flex:1;" title="Repeater exchange to attach as evidence">
+      {% for e in available_evidence %}
+      <option value="{{ e.id }}">{{ e.method }} {{ e.url }} → {{ e.status if e.status is not none else "—" }}{% if e.label %} ({{ e.label }}){% endif %}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn">Add evidence</button>
+  </form>
+  {% else %}
+  <div style="color:var(--text-muted); font-size:12px;">No unattached Repeater requests for this program — use the Repeater in a hunt session first.</div>
+  {% endif %}
+</div>
+
 {# ── Outcome feedback ────────────────────────────────────────────────── #}
 <div class="card" style="margin-bottom: 1rem;">
   <div style="font-size:13px; font-weight:600; margin-bottom:0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Record Outcome</div>
