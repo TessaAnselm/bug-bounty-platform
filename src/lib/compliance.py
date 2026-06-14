@@ -71,41 +71,58 @@ def host_from_url(url: str) -> str | None:
         return None
 
 
-def is_blocked_host(host: str | None) -> bool:
-    """True if host is missing, unresolvable, or resolves to a non-public address.
+def _is_public(addr: ipaddress._BaseAddress) -> bool:
+    return not (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_reserved
+        or addr.is_multicast
+        or addr.is_unspecified
+    )
 
-    This is the SSRF guard for any server-side request feature: it blocks
-    loopback, private, link-local (incl. cloud metadata 169.254.169.254),
-    reserved, multicast, and unspecified addresses. Scope validation still runs
-    on top of this — this is defense-in-depth so the platform can never be used
-    to reach internal services even if a scope entry is misconfigured.
 
-    Note: resolution here and at send time is a small TOCTOU window (DNS
-    rebinding); acceptable for a single-user local tool, hardened later by
-    pinning the resolved IP.
+def resolve_public_ip(host: str | None) -> str | None:
+    """Resolve host and return one public IP to pin the connection to, or None
+    if it's missing, unresolvable, or resolves to ANY non-public address.
+
+    Returning a specific IP lets the caller connect to exactly that address with
+    no second DNS lookup — closing the DNS-rebinding window. We reject the host
+    outright if *any* resolved address is non-public (so a host that mixes a
+    public and a private record can't be used at all). IPv4 is preferred.
     """
     if not host:
-        return True
+        return None
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror:
-        return True  # unresolvable → block
+        return None  # unresolvable → block
+    candidates: list[tuple[int, str]] = []
     for info in infos:
         ip_str = info[4][0]
         try:
             addr = ipaddress.ip_address(ip_str)
         except ValueError:
-            return True
-        if (
-            addr.is_private
-            or addr.is_loopback
-            or addr.is_link_local
-            or addr.is_reserved
-            or addr.is_multicast
-            or addr.is_unspecified
-        ):
-            return True
-    return False
+            return None
+        if not _is_public(addr):
+            return None  # any non-public address → block the host entirely
+        candidates.append((addr.version, ip_str))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda t: t[0])  # IPv4 (4) before IPv6 (6)
+    return candidates[0][1]
+
+
+def is_blocked_host(host: str | None) -> bool:
+    """True if host is missing, unresolvable, or resolves to a non-public address.
+
+    SSRF guard for any server-side request feature; blocks loopback, private,
+    link-local (incl. cloud metadata 169.254.169.254), reserved, multicast, and
+    unspecified addresses. Scope validation runs on top of this. The Repeater
+    additionally pins the resolved IP for the connection (see resolve_public_ip)
+    so there is no exploitable DNS-rebinding window at send time.
+    """
+    return resolve_public_ip(host) is None
 
 
 def redact_headers(headers: dict | None) -> dict:

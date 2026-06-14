@@ -32,8 +32,28 @@ from src.lib.compliance import (
     min_send_interval,
     host_from_url,
     is_blocked_host,
+    resolve_public_ip,
     redact_headers,
 )
+
+
+class _PinnedTransport(httpx.AsyncHTTPTransport):
+    """SSRF/DNS-rebinding-safe transport.
+
+    Resolves and validates the target host, then connects to that exact IP (no
+    second, uncontrolled DNS lookup) while keeping the original hostname for the
+    Host header and TLS — `sni_hostname` makes the certificate verify against the
+    hostname even though the TCP target is the pinned IP. A host that resolves to
+    any non-public address (or rebinds between guard and connect) is refused here.
+    """
+    async def handle_async_request(self, request):
+        host = request.url.host
+        ip = resolve_public_ip(host)
+        if ip is None:
+            raise httpx.ConnectError(f"blocked or unresolvable host: {host}")
+        request.extensions = {**request.extensions, "sni_hostname": host}
+        request.url = request.url.copy_with(host=ip)
+        return await super().handle_async_request(request)
 
 router = APIRouter(prefix="/repeater", tags=["repeater"])
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
@@ -276,7 +296,10 @@ async def send_request(
     # --- send (no auto-redirect; surface 3xx instead of chasing it) ---
     try:
         t0 = time.monotonic()
-        async with httpx.AsyncClient(follow_redirects=False, timeout=_TIMEOUT, trust_env=False) as client:
+        async with httpx.AsyncClient(
+            transport=_PinnedTransport(trust_env=False),
+            follow_redirects=False, timeout=_TIMEOUT, trust_env=False,
+        ) as client:
             r = await client.request(
                 method, url,
                 headers=req_headers,
