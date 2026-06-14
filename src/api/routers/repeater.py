@@ -12,6 +12,7 @@ Each exchange is stored for evidence and MCP/AI review.
 import time
 import uuid
 import asyncio
+import logging
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -49,8 +50,28 @@ _TIMEOUT = 15.0
 # Resets on restart; a courtesy throttle on top of the human click rate.
 _last_send: dict[str, float] = {}
 
+# Audit log — records blocked requests (with reason), not just successful sends.
+logger = logging.getLogger("bountyos.repeater")
+
+
+def _compliance_info(platform: str, scope, oos, constraints) -> dict:
+    """Compliance state shown in the Repeater banner so the hunter can see, at a
+    glance, the boundaries every request will be held to."""
+    constraints = constraints or {}
+    return {
+        "platform": platform,
+        "scope_count": len(scope or []),
+        "oos_count": len(oos or []),
+        "rate_rpm": constraints.get("rate_limit_rpm"),
+        "active_scanning": bool(constraints.get("allow_active_scanning")),
+        "header_required": platform == "hackerone",
+        "header_ok": not (platform == "hackerone" and not compliance_headers(platform)),
+    }
+
 
 def _parse_headers(raw: str) -> dict:
+    """Parse the headers textarea ("Key: Value" per line) into a dict, skipping
+    blank or malformed lines."""
     headers: dict[str, str] = {}
     for line in (raw or "").splitlines():
         line = line.strip()
@@ -63,14 +84,19 @@ def _parse_headers(raw: str) -> dict:
 
 
 def _blocked_header_names(headers: dict) -> list[str]:
+    """Return any user-supplied headers we refuse to send (Host, Content-Length,
+    Transfer-Encoding, Connection, Proxy-Authorization) — the client controls
+    these and letting them through enables request smuggling."""
     return sorted(k for k in headers if k.lower() in _BLOCKED_REQUEST_HEADERS)
 
 
 def _headers_to_text(headers: dict | None) -> str:
+    """Render a headers dict back into "Key: Value" lines for the editor textarea."""
     return "\n".join(f"{k}: {v}" for k, v in (headers or {}).items())
 
 
 def _exchange_dict(ex: HttpExchange) -> dict:
+    """Summarize an exchange for the history table (no request/response bodies)."""
     return {
         "id": str(ex.id),
         "method": ex.request_method,
@@ -83,6 +109,7 @@ def _exchange_dict(ex: HttpExchange) -> dict:
 
 
 def _load_history(s: Session, session_id: str) -> list[dict]:
+    """The 50 most recent exchanges for this hunt session, newest first."""
     rows = s.execute(
         select(HttpExchange)
         .where(HttpExchange.hunt_session_id == session_id)
@@ -93,6 +120,8 @@ def _load_history(s: Session, session_id: str) -> list[dict]:
 
 
 def _load_findings(s: Session, program_id: str, asset_id=None) -> list[dict]:
+    """Findings for the 'attach to finding' dropdown — restricted to the given
+    asset (or asset-less findings) when asset_id is provided."""
     q = select(Finding).where(Finding.program_id == program_id)
     if asset_id:
         # Only offer findings for this asset (or asset-less ones), so a request
@@ -102,7 +131,9 @@ def _load_findings(s: Session, program_id: str, asset_id=None) -> list[dict]:
     return [{"id": str(f.id), "title": f.title} for f in rows]
 
 
-def _render(request, session_id, program_info, history, *, form, response=None, error=None, findings=None, api_key=""):
+def _render(request, session_id, program_info, history, *, form, response=None, error=None, findings=None, compliance=None, api_key=""):
+    """Render the Repeater page: request editor, compliance banner, history,
+    findings dropdown, and an optional response or error."""
     return templates.TemplateResponse("repeater/index.html", {
         "request": request,
         "api_key": api_key,
@@ -114,6 +145,7 @@ def _render(request, session_id, program_info, history, *, form, response=None, 
         "response": response,
         "error": error,
         "findings": findings or [],
+        "compliance": compliance or {},
     })
 
 
@@ -124,12 +156,19 @@ async def repeater_page(
     from_id: str = "",
     api_key: str = Depends(verify_api_key),
 ):
+    """Render the Repeater for a hunt session.
+
+    Shows the request editor, compliance banner, and exchange history. With
+    ?from_id=<exchange> it pre-fills the editor from a past request so you can
+    tweak and resend it.
+    """
     with Session(engine) as s:
         hunt = s.get(HuntSession, session)
         if not hunt:
             return HTMLResponse("Hunt session not found", status_code=404)
         program = s.get(Program, hunt.program_id)
         program_info = {"id": str(program.id), "name": program.name, "platform": program.platform or ""}
+        compliance = _compliance_info(program.platform or "", program.scope, program.out_of_scope, program.constraints)
         history = _load_history(s, session)
         findings = _load_findings(s, str(program.id), str(hunt.asset_id) if hunt.asset_id else None)
         form = {"method": "GET", "url": "", "headers": "", "body": "", "label": ""}
@@ -143,7 +182,7 @@ async def repeater_page(
                     "body": ex.request_body or "",
                     "label": ex.label or "",
                 }
-        return _render(request, session, program_info, history, form=form, findings=findings, api_key=api_key)
+        return _render(request, session, program_info, history, form=form, findings=findings, compliance=compliance, api_key=api_key)
 
 
 @router.post("/send", response_class=HTMLResponse)
@@ -157,6 +196,15 @@ async def send_request(
     label: str = Form(""),
     api_key: str = Depends(verify_api_key),
 ):
+    """Validate, send one request to an in-scope host, and store the exchange.
+
+    Runs the full guard chain (method/scheme allowlist, header/body size caps,
+    SSRF block, scope validation, blocked-header check, required compliance
+    header), throttles to the program's rate limit, forces the required headers,
+    sends without following redirects, caps the stored response body, and records
+    the exchange. Blocked requests are audit-logged via reject() and never leave
+    the host.
+    """
     method = method.strip().upper()
     url = url.strip()
 
@@ -176,38 +224,44 @@ async def send_request(
 
     form = {"method": method, "url": url, "headers": headers, "body": body, "label": label}
     program_info = {"id": prog_id, "name": prog_name, "platform": platform}
+    compliance = _compliance_info(platform, scope, oos, constraints)
 
     def render(resp=None, error=None):
         with Session(engine) as s:
             history = _load_history(s, hunt_session_id)
             findings = _load_findings(s, prog_id, asset_id)
-        return _render(request, hunt_session_id, program_info, history, form=form, response=resp, error=error, findings=findings, api_key=api_key)
+        return _render(request, hunt_session_id, program_info, history, form=form, response=resp, error=error, findings=findings, compliance=compliance, api_key=api_key)
+
+    def reject(reason: str):
+        # Audit every blocked request — the *why*, not just successful sends.
+        logger.warning("Repeater BLOCKED | program=%s | %s %s | reason=%s", prog_name, method, url, reason)
+        return render(error=reason)
 
     # --- guards (fail before any request leaves the host) ---
     if method not in _ALLOWED_METHODS:
-        return render(error=f"Method {method} not allowed.")
+        return reject(f"Method {method} not allowed.")
     if urlparse(url).scheme not in ("http", "https"):
-        return render(error="URL must start with http:// or https://")
+        return reject("URL must start with http:// or https://")
     if len(headers.encode()) > _MAX_REQUEST_HEADERS:
-        return render(error=f"Headers are too large. Limit is {_MAX_REQUEST_HEADERS} bytes.")
+        return reject(f"Headers are too large. Limit is {_MAX_REQUEST_HEADERS} bytes.")
     if len(body.encode()) > _MAX_REQUEST_BODY:
-        return render(error=f"Request body is too large. Limit is {_MAX_REQUEST_BODY} bytes.")
+        return reject(f"Request body is too large. Limit is {_MAX_REQUEST_BODY} bytes.")
     host = host_from_url(url)
     if is_blocked_host(host):
-        return render(error=f"Blocked: '{host}' is missing or resolves to a private/loopback address (SSRF guard).")
+        return reject(f"Blocked: '{host}' is missing or resolves to a private/loopback address (SSRF guard).")
     if not validate_target(host, scope, oos):
-        return render(error=f"'{host}' is out of scope for {prog_name} — refusing to send.")
+        return reject(f"'{host}' is out of scope for {prog_name} — refusing to send.")
 
     req_headers = _parse_headers(headers)
     blocked_headers = _blocked_header_names(req_headers)
     if blocked_headers:
-        return render(error=f"Blocked request header(s): {', '.join(blocked_headers)}")
+        return reject(f"Blocked request header(s): {', '.join(blocked_headers)}")
 
     # --- compliance: validate the required header BEFORE touching throttle state ---
     # A rejected request must not consume the rate-limit slot or trigger a sleep.
     required_headers = compliance_headers(platform)
     if platform == "hackerone" and not required_headers:
-        return render(error="HackerOne requests require HACKERONE_RESEARCH_USERNAME to be configured.")
+        return reject("HackerOne requests require HACKERONE_RESEARCH_USERNAME to be configured.")
 
     # --- per-program rate limit ---
     interval = min_send_interval(constraints, _DEFAULT_RPS)
