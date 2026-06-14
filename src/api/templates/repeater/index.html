@@ -6,9 +6,21 @@
   <a href="/hunt/{{ session_id }}" class="btn btn-sm">← Back to hunt session</a>
 </div>
 
-<div style="color:var(--text-muted); font-size:13px; margin-bottom:1rem;">
-  {{ program.name }} · platform <code>{{ program.platform }}</code>
-  — requests are scope-checked, rate-limited, and compliance-headers applied automatically.
+{# ── Compliance banner — the boundaries every request is held to ─────────── #}
+<div style="border:1px solid var(--border); border-radius:6px; padding:0.6rem 0.85rem; margin-bottom:1rem; font-size:13px; display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem; align-items:center;">
+  <span><strong>{{ program.name }}</strong> · <code>{{ compliance.platform or program.platform }}</code></span>
+  <span>Scope: <strong>{{ compliance.scope_count }}</strong> in / {{ compliance.oos_count }} out
+    {% if compliance.scope_count == 0 %}<span style="color:#fca5a5;">⚠ no scope</span>{% endif %}</span>
+  <span>Rate: <strong>{% if compliance.rate_rpm %}{{ compliance.rate_rpm }}/min{% else %}default 3/sec{% endif %}</strong></span>
+  <span>Active scanning:
+    {% if compliance.active_scanning %}<span style="color:#fca5a5;">ON</span>{% else %}<span style="color:#86efac;">off</span>{% endif %}
+  </span>
+  {% if compliance.header_required %}
+  <span>Required header:
+    {% if compliance.header_ok %}<span style="color:#86efac;">configured ✓</span>{% else %}<span style="color:#fca5a5;">MISSING — sends blocked ✗</span>{% endif %}
+  </span>
+  {% endif %}
+  <span style="color:var(--text-muted);">— enforced automatically on every request</span>
 </div>
 
 {% if error %}
