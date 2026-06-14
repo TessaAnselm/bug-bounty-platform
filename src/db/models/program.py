@@ -8,6 +8,7 @@ from src.db.base import Base
 
 
 class ProgramStatus(enum.Enum):
+    draft = "draft"        # onboarded but not yet compliance-cleared; cannot be reconned
     active = "active"
     paused = "paused"
     archived = "archived"
@@ -22,8 +23,10 @@ class Program(Base):
     scope = Column(JSONB, nullable=False, default=list)
     out_of_scope = Column(JSONB, nullable=False, default=list)
     max_payout = Column(Integer, nullable=True)
-    status = Column(Enum(ProgramStatus), nullable=False, default=ProgramStatus.active)
+    status = Column(Enum(ProgramStatus), nullable=False, default=ProgramStatus.draft)
     constraints = Column(JSONB, nullable=True)
+    # Compliance checklist attestations — must be complete before activation.
+    compliance = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     assets = relationship("Asset", back_populates="program")

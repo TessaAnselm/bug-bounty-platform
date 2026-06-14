@@ -20,7 +20,9 @@ async def store_program(
             scope=scope,
             out_of_scope=out_of_scope,
             max_payout=max_payout,
-            status=ProgramStatus.active,
+            # Onboards as draft — recon is gated until the compliance checklist
+            # is completed and the program is explicitly activated.
+            status=ProgramStatus.draft,
         )
         session.add(program)
         session.commit()
