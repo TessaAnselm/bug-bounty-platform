@@ -50,9 +50,11 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 | Safety hardening (scope enforcement, confidence scoring) | Done |
 | MCP server (Claude Code reads live DB) | Done |
 | Risk scoring + triage queue | Done |
-| Hunt sessions + checklist engine | In progress |
-| Report export (markdown, HackerOne format) | Planned |
-| Feedback loop UI | Planned |
+| Hunt sessions + checklist engine | Done |
+| Repeater (in-platform request sender: scope/SSRF/rate/header-enforced) | Done |
+| Evidence attachment (Repeater exchanges → findings, same-asset scoped) | Done |
+| Report export (markdown / HackerOne / Bugcrowd, with redacted evidence) | Done |
+| Outcome feedback (result, payout, lessons per finding) | Done |
 
 See [PROGRESS.md](PROGRESS.md) for full build history.
 
@@ -79,11 +81,17 @@ Hunt Session        → structured session: hypothesis, checklist, notes, findin
       ↓
 Checklist Testing   → IDOR / BAC / JWT / API checklists surfaced by asset tags
       ↓
-Finding Builder     → title, impact, steps to reproduce, evidence, severity
+Repeater            → send scope-checked, rate-limited, compliance-headed
+                      requests; every exchange logged (redacted for AI/MCP)
       ↓
-Report Export       → markdown / HackerOne / Bugcrowd format (coming)
+Evidence → Finding  → attach Repeater exchanges (same asset) as evidence
       ↓
-Feedback Loop       → outcome recorded, playbook updated (coming)
+Finding Builder     → title, impact, steps to reproduce, severity
+      ↓
+Report Export       → markdown / HackerOne / Bugcrowd, with redacted
+                      request/response evidence + auto-scaffolded steps
+      ↓
+Feedback Loop       → outcome recorded (result, payout, lessons)
 ```
 
 ---
