@@ -2,6 +2,8 @@
 
 Run this before every engagement. Not optional.
 
+> **Enforced in the platform.** A program is onboarded as **`draft`** and **cannot be activated** (and therefore cannot be reconned or sent requests via the Repeater) until its **Compliance Checklist** is complete on the program detail page: terms accepted, in-scope loaded, out-of-scope reviewed, rate limit recorded, active-scanning policy confirmed, required headers configured, and prohibited tools recorded. Recon and the Repeater both refuse any program that isn't `active`. This document is the human version of that gate.
+
 ## Before You Start
 
 - [ ] Read the full program policy — not just the scope list

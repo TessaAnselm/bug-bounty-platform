@@ -8,7 +8,23 @@
   <span style="display:flex; align-items:center; gap:0.75rem;">
     <span class="badge badge-{{ program.status.value }}">{{ program.status.value }}</span>
 
-    {% if program.status.value == "active" %}
+    {% if program.status.value == "draft" %}
+    {% if compliance_ok %}
+    <form method="post" action="/programs/{{ program.id }}/status" style="display:inline">
+      <input type="hidden" name="status" value="active">
+      <button type="submit" class="btn btn-primary" style="font-size:12px; padding:0.3rem 0.7rem;">Activate</button>
+    </form>
+    {% else %}
+    <button type="button" class="btn" disabled title="Complete the compliance checklist to activate"
+            style="font-size:12px; padding:0.3rem 0.7rem; opacity:0.5; cursor:not-allowed;">Activate (complete checklist)</button>
+    {% endif %}
+    <form method="post" action="/programs/{{ program.id }}/status" style="display:inline"
+          onsubmit="return confirm('Archive {{ program.name }}?')">
+      <input type="hidden" name="status" value="archived">
+      <button type="submit" class="btn" style="font-size:12px; padding:0.3rem 0.7rem; color:var(--text-muted);">Archive</button>
+    </form>
+
+    {% elif program.status.value == "active" %}
     <form method="post" action="/programs/{{ program.id }}/status" style="display:inline">
       <input type="hidden" name="status" value="paused">
       <button type="submit" class="btn" style="font-size:12px; padding:0.3rem 0.7rem;">Pause</button>
@@ -37,6 +53,37 @@
     </form>
     {% endif %}
   </span>
+</div>
+
+{# ── Compliance checklist — required before a program can be activated ────── #}
+<div class="card" style="margin-bottom:1rem; {% if not compliance_ok %}border-color:#7f1d1d;{% endif %}">
+  <div style="font-size:13px; font-weight:600; margin-bottom:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">
+    Compliance checklist
+    {% if compliance_ok %}<span style="color:#86efac;">— complete ✓</span>
+    {% else %}<span style="color:#fca5a5;">— required before activation</span>{% endif %}
+  </div>
+
+  <ul style="list-style:none; padding:0; margin:0 0 1rem 0; font-size:13px; line-height:1.8;">
+    <li>{{ "✅" if compliance.terms_accepted else "⬜" }} Program terms accepted</li>
+    <li>{{ "✅" if compliance.in_scope_loaded else "❌" }} In-scope assets loaded ({{ program.scope|length }})</li>
+    <li>{{ "✅" if compliance.out_of_scope_reviewed else "⬜" }} Out-of-scope reviewed</li>
+    <li>{{ "✅" if compliance.rate_limit_recorded else "⬜" }} Rate limit recorded</li>
+    <li>{{ "✅" if compliance.active_scanning_confirmed else "⬜" }} Active-scanning policy confirmed</li>
+    <li>{{ "✅" if compliance.required_headers_configured else "❌" }} Required headers configured</li>
+    <li>{{ "✅" if compliance.prohibited_tools_recorded else "⬜" }} Prohibited tools recorded</li>
+  </ul>
+
+  <form method="post" action="/programs/{{ program.id }}/compliance">
+    <label style="display:block; margin-bottom:0.35rem; font-size:13px;"><input type="checkbox" name="terms_accepted" {% if compliance_values.terms_accepted %}checked{% endif %}> I have accepted this program's terms and rules of engagement</label>
+    <label style="display:block; margin-bottom:0.35rem; font-size:13px;"><input type="checkbox" name="out_of_scope_reviewed" {% if compliance_values.out_of_scope_reviewed %}checked{% endif %}> I have reviewed the out-of-scope list</label>
+    <label style="display:block; margin-bottom:0.35rem; font-size:13px;"><input type="checkbox" name="rate_limit_confirmed" {% if compliance_values.rate_limit_confirmed %}checked{% endif %}> Rate limit recorded (explicit cap set in constraints, or default 3/s acceptable)</label>
+    <label style="display:block; margin-bottom:0.35rem; font-size:13px;"><input type="checkbox" name="active_scanning_confirmed" {% if compliance_values.active_scanning_confirmed %}checked{% endif %}> Active-scanning policy confirmed (off unless the program allows it)</label>
+    <div style="margin:0.5rem 0;">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Prohibited tools / vuln classes (per program policy)</label>
+      <textarea name="prohibited_tools" rows="2" style="width:100%; box-sizing:border-box; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.5rem; font-size:13px;">{{ compliance_values.prohibited_tools or "" }}</textarea>
+    </div>
+    <button type="submit" class="btn">Save compliance</button>
+  </form>
 </div>
 
 <div class="detail-grid">

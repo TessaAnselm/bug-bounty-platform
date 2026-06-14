@@ -3,7 +3,7 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 
 with workflow.unsafe.imports_passed_through():
-    from src.workflows.types import OnboardingInput, OnboardingResult, ReconInput, MonitorInput
+    from src.workflows.types import OnboardingInput, OnboardingResult, MonitorInput
     from src.activities.storage.programs import store_program
     from src.activities.scoring.score_program import score_program
     from src.activities.notifications.discord_alert import send_discord_alert
@@ -31,13 +31,10 @@ class ProgramOnboardingWorkflow:
             retry_policy=_RETRY,
         )
 
-        recon_handle = await workflow.start_child_workflow(
-            "ReconWorkflow",
-            args=[ReconInput(program_id=program_id, triggered_by="onboarding")],
-            id=f"recon-{program_id}-initial",
-            task_queue=TASK_QUEUE,
-        )
-
+        # Recon is NOT auto-started: the program onboards as `draft` and recon is
+        # gated until its compliance checklist is completed and it is activated.
+        # The monitor still runs on its schedule; ReconWorkflow refuses any program
+        # that isn't active, so monitoring effectively begins once you activate.
         monitor_handle = await workflow.start_child_workflow(
             "MonitorWorkflow",
             args=[MonitorInput(program_id=program_id, interval_hours=24)],
@@ -47,13 +44,14 @@ class ProgramOnboardingWorkflow:
 
         await workflow.execute_activity(
             send_discord_alert,
-            f"✅ Onboarded: **{input.name}** ({input.platform}) — recon started",
+            f"✅ Onboarded as draft: **{input.name}** ({input.platform}) — "
+            f"complete the compliance checklist and activate to start recon",
             start_to_close_timeout=_SHORT,
             retry_policy=_RETRY,
         )
 
         return OnboardingResult(
             program_id=program_id,
-            recon_workflow_id=recon_handle.id,
+            recon_workflow_id="",  # not started — activate the program to recon
             monitor_workflow_id=monitor_handle.id,
         )

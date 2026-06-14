@@ -1,3 +1,4 @@
+import html
 import json
 import re
 import time
@@ -15,6 +16,32 @@ from src.api.auth import verify_api_key
 from src.db.session import engine
 from src.db.models import Program, ProgramScore, ReconRun, Alert
 from src.db.models.program import ProgramStatus
+from src.lib.compliance import HACKERONE_RESEARCH_USERNAME
+
+
+def compliance_status(program) -> dict:
+    """Per-item compliance state for a program.
+
+    Derived items read live data (scope loaded, required header configured);
+    the rest are attestations stored in program.compliance. When every value is
+    True the program is allowed to be activated.
+    """
+    c = program.compliance or {}
+    platform = program.platform or ""
+    return {
+        "terms_accepted": bool(c.get("terms_accepted")),
+        "in_scope_loaded": len(program.scope or []) > 0,
+        "out_of_scope_reviewed": bool(c.get("out_of_scope_reviewed")),
+        "rate_limit_recorded": bool(c.get("rate_limit_confirmed")),
+        "active_scanning_confirmed": bool(c.get("active_scanning_confirmed")),
+        "required_headers_configured": platform != "hackerone" or bool(HACKERONE_RESEARCH_USERNAME),
+        "prohibited_tools_recorded": bool((c.get("prohibited_tools") or "").strip()),
+    }
+
+
+def compliance_complete(program) -> bool:
+    """True when every compliance checklist item is satisfied."""
+    return all(compliance_status(program).values())
 
 router = APIRouter(prefix="/programs", tags=["programs"])
 
@@ -446,7 +473,9 @@ def onboard_from_discover(
             scope=scope_items,
             out_of_scope=oos_items,
             max_payout=None,
-            status=ProgramStatus.active,
+            # Onboards as draft — complete the compliance checklist and activate
+            # before any recon can run.
+            status=ProgramStatus.draft,
         )
         session.add(program)
         session.commit()
@@ -491,6 +520,9 @@ async def program_detail(program_id: str, request: Request, api_key: str = Depen
         "scores": scores,
         "recon_runs": recon_runs,
         "constraints": program.constraints or {},
+        "compliance": compliance_status(program),
+        "compliance_ok": compliance_complete(program),
+        "compliance_values": program.compliance or {},
         "active": "programs",
     })
 
@@ -600,6 +632,7 @@ async def update_scope(
 
 
 _VALID_STATUS_TRANSITIONS = {
+    ProgramStatus.draft: [ProgramStatus.active, ProgramStatus.archived],
     ProgramStatus.active: [ProgramStatus.paused, ProgramStatus.archived],
     ProgramStatus.paused: [ProgramStatus.active, ProgramStatus.archived],
     ProgramStatus.archived: [ProgramStatus.active],
@@ -632,7 +665,49 @@ async def update_status(
         if new_status not in allowed:
             return HTMLResponse("Invalid status transition", status_code=400)
 
+        # Activation gate — a program cannot go active until every compliance
+        # checklist item is satisfied. Recon refuses non-active programs, so this
+        # is the single enforcement point for "don't hunt before you're cleared".
+        if new_status == ProgramStatus.active and not compliance_complete(program):
+            missing = [k for k, ok in compliance_status(program).items() if not ok]
+            return HTMLResponse(
+                "Cannot activate — compliance checklist incomplete: " + html.escape(", ".join(missing)),
+                status_code=400,
+            )
+
         program.status = new_status
+        session.commit()
+        safe_id = str(program.id)
+
+    return RedirectResponse(url=f"/programs/{uuid.UUID(str(safe_id))}", status_code=303)
+
+
+@router.post("/{program_id}/compliance")
+async def update_compliance(
+    program_id: str,
+    request: Request,
+    terms_accepted: str = Form(""),
+    out_of_scope_reviewed: str = Form(""),
+    rate_limit_confirmed: str = Form(""),
+    active_scanning_confirmed: str = Form(""),
+    prohibited_tools: str = Form(""),
+    api_key: str = Depends(verify_api_key),
+):
+    """Save the program's compliance checklist attestations (checkboxes arrive as
+    'on' when ticked). These must all be satisfied before the program can be
+    activated — see the activation gate in update_status().
+    """
+    with Session(engine) as session:
+        program = session.get(Program, program_id)
+        if not program:
+            return HTMLResponse("Program not found", status_code=404)
+        program.compliance = {
+            "terms_accepted": terms_accepted == "on",
+            "out_of_scope_reviewed": out_of_scope_reviewed == "on",
+            "rate_limit_confirmed": rate_limit_confirmed == "on",
+            "active_scanning_confirmed": active_scanning_confirmed == "on",
+            "prohibited_tools": prohibited_tools.strip(),
+        }
         session.commit()
         safe_id = str(program.id)
 
