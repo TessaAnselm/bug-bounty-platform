@@ -63,24 +63,37 @@
     {% else %}<span style="color:#fca5a5;">— required before activation</span>{% endif %}
   </div>
 
-  <ul style="list-style:none; padding:0; margin:0 0 1rem 0; font-size:13px; line-height:1.8;">
-    <li>{{ "✅" if compliance.terms_accepted else "⬜" }} Program terms accepted</li>
+  {# Helper styles for the muted "default + example" hints under each item #}
+  {% set hint = "font-size:11px; color:var(--text-muted); margin:0 0 0.6rem 1.6rem; line-height:1.4;" %}
+
+  {# Auto-verified — read-only, reflect live data (not toggleable here) #}
+  <div style="font-size:12px; color:var(--text-muted); margin-bottom:0.3rem;">Auto-verified from your data:</div>
+  <ul style="list-style:none; padding:0; margin:0 0 1rem 0; font-size:13px;">
     <li>{{ "✅" if compliance.in_scope_loaded else "❌" }} In-scope assets loaded ({{ program.scope|length }})</li>
-    <li>{{ "✅" if compliance.out_of_scope_reviewed else "⬜" }} Out-of-scope reviewed</li>
-    <li>{{ "✅" if compliance.rate_limit_recorded else "⬜" }} Rate limit recorded</li>
-    <li>{{ "✅" if compliance.active_scanning_confirmed else "⬜" }} Active-scanning policy confirmed</li>
+    <li style="{{ hint }}">Imported from the program feed on onboard; edit under <strong>Scope</strong> below.</li>
     <li>{{ "✅" if compliance.required_headers_configured else "❌" }} Required headers configured</li>
-    <li>{{ "✅" if compliance.prohibited_tools_recorded else "⬜" }} Prohibited tools recorded</li>
+    <li style="{{ hint }}">Default: <code>X-HackerOne-Research</code> is auto-attached for HackerOne programs when <code>HACKERONE_RESEARCH_USERNAME</code> is set. Non-HackerOne programs need none.</li>
   </ul>
 
+  {# Attestations — THESE checkboxes are the inputs; tick and Save #}
   <form method="post" action="/programs/{{ program.id }}/compliance">
-    <label style="display:block; margin-bottom:0.35rem; font-size:13px;"><input type="checkbox" name="terms_accepted" {% if compliance_values.terms_accepted %}checked{% endif %}> I have accepted this program's terms and rules of engagement</label>
-    <label style="display:block; margin-bottom:0.35rem; font-size:13px;"><input type="checkbox" name="out_of_scope_reviewed" {% if compliance_values.out_of_scope_reviewed %}checked{% endif %}> I have reviewed the out-of-scope list</label>
-    <label style="display:block; margin-bottom:0.35rem; font-size:13px;"><input type="checkbox" name="rate_limit_confirmed" {% if compliance_values.rate_limit_confirmed %}checked{% endif %}> Rate limit recorded (explicit cap set in constraints, or default 3/s acceptable)</label>
-    <label style="display:block; margin-bottom:0.35rem; font-size:13px;"><input type="checkbox" name="active_scanning_confirmed" {% if compliance_values.active_scanning_confirmed %}checked{% endif %}> Active-scanning policy confirmed (off unless the program allows it)</label>
+    <div style="font-size:12px; color:var(--text-muted); margin-bottom:0.4rem;">Confirm, then <strong>Save</strong> (the checklist above updates after saving):</div>
+
+    <label style="display:block; font-size:13px;"><input type="checkbox" name="terms_accepted" {% if compliance_values.terms_accepted %}checked{% endif %}> Program terms &amp; rules of engagement accepted</label>
+    <div style="{{ hint }}">Read the <em>full</em> policy, not just the scope list — region limits, account rules, disclosure timeline.</div>
+
+    <label style="display:block; font-size:13px;"><input type="checkbox" name="out_of_scope_reviewed" {% if compliance_values.out_of_scope_reviewed %}checked{% endif %}> Out-of-scope list reviewed</label>
+    <div style="{{ hint }}">Typical exclusions: third-party services, DoS / brute-force, rate-limiting / clickjacking / self-XSS, social engineering. (Often in policy prose, not the feed.)</div>
+
+    <label style="display:block; font-size:13px;"><input type="checkbox" name="rate_limit_confirmed" {% if compliance_values.rate_limit_confirmed %}checked{% endif %}> Rate limit recorded</label>
+    <div style="{{ hint }}">Current: <strong>{% if constraints.rate_limit_rpm %}{{ constraints.rate_limit_rpm }} req/min{% else %}default 3 req/sec{% endif %}</strong>. Set a per-program cap under <strong>Program Constraints</strong> (req/min) to match policy — e.g. a 3/sec policy = <code>180</code>.</div>
+
+    <label style="display:block; font-size:13px;"><input type="checkbox" name="active_scanning_confirmed" {% if compliance_values.active_scanning_confirmed %}checked{% endif %}> Active-scanning policy confirmed</label>
+    <div style="{{ hint }}">Current: <strong>{% if constraints.allow_active_scanning %}ON{% else %}OFF (default){% endif %}</strong>. Default is OFF — passive only (no katana / gowitness / nuclei). Turn on only if the program explicitly permits automated scanning.</div>
+
     <div style="margin:0.5rem 0;">
-      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Prohibited tools / vuln classes (per program policy)</label>
-      <textarea name="prohibited_tools" rows="2" style="width:100%; box-sizing:border-box; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.5rem; font-size:13px;">{{ compliance_values.prohibited_tools or "" }}</textarea>
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Prohibited tools / vuln classes (per program policy) — required, must be non-empty</label>
+      <textarea name="prohibited_tools" rows="2" placeholder="e.g. automated vulnerability scanners (nuclei); DoS / brute-force; request flooding; social engineering" style="width:100%; box-sizing:border-box; background:var(--bg-main); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:0.5rem; font-size:13px;">{{ compliance_values.prohibited_tools or "" }}</textarea>
     </div>
     <button type="submit" class="btn">Save compliance</button>
   </form>
