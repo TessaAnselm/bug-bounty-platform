@@ -73,17 +73,29 @@ async def enumerate_subdomains(scope: list[str], out_of_scope: list[str] | None 
         activity.heartbeat(f"subfinder: {domain}")
         try:
             proc = await asyncio.create_subprocess_exec(
-                SUBFINDER, "-d", domain, "-silent",
+                # -all      : query every passive source (more coverage — worth it
+                #             for wildcard programs where all subdomains are in scope)
+                # -silent   : output subdomains only (no banner) so stdout parsing is clean
+                # -max-time : hard per-domain cap (minutes) so a slow/hung source can't
+                #             stall the run — this is the fix for the ~34-min drag
+                SUBFINDER, "-d", domain, "-all", "-silent", "-max-time", "2",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=300)
+            try:
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=180)
+            except asyncio.TimeoutError:
+                # Backstop if subfinder ignores -max-time — kill it so it doesn't
+                # linger after we give up on this domain.
+                proc.kill()
+                await proc.wait()
+                raise
             lines = [line.strip() for line in stdout.decode().splitlines() if line.strip()]
             results.extend(lines)
         except FileNotFoundError:
             activity.logger.warning(f"subfinder not found — install it with: brew install subfinder")
         except asyncio.TimeoutError:
-            activity.logger.warning(f"subfinder timed out for {domain} after 300s")
+            activity.logger.warning(f"subfinder timed out for {domain} after 180s")
 
     # Always include the root domains themselves — subfinder only returns children.
     for d in domains:
