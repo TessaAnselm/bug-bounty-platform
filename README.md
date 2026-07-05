@@ -14,8 +14,8 @@ A personal, structured platform for ethical bug bounty research. Built as a guid
 **Program Dashboard — programs with status badges, scores, and onboard/pause/archive controls**
 ![Program Dashboard](docs/screenshots/programs.png)
 
-**Program Detail — scope editor, constraints, recon history, and status controls**
-![Program Detail](docs/screenshots/program_detail.png)
+**Program Detail — compliance checklist gate: a program stays `draft` and cannot be activated (or reconned) until terms, scope, out-of-scope, rate limit, active-scanning policy, required headers, and prohibited tools are confirmed**
+![Program Detail](docs/screenshots/programs2.png)
 
 **Workflow Health — recon run history with live status, duration, and asset counts**
 ![Workflow Health](docs/screenshots/workflow_health.png)
