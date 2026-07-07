@@ -3,6 +3,7 @@ import json
 import re
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 from fastapi import APIRouter, Request, Depends, Form
@@ -17,6 +18,7 @@ from src.db.session import engine
 from src.db.models import Program, ProgramScore, ReconRun, Alert
 from src.db.models.program import ProgramStatus
 from src.lib.compliance import HACKERONE_RESEARCH_USERNAME
+from src.workflows.types import ReconInput
 
 
 def compliance_status(program) -> dict:
@@ -712,3 +714,46 @@ async def update_compliance(
         safe_id = str(program.id)
 
     return RedirectResponse(url=f"/programs/{uuid.UUID(str(safe_id))}", status_code=303)
+
+
+@router.post("/{program_id}/recon")
+async def run_recon(
+    program_id: str,
+    request: Request,
+    api_key: str = Depends(verify_api_key),
+):
+    """Submit a ReconWorkflow for an active program — the dashboard equivalent of
+    scripts/trigger_recon.py. Refuses non-active or scope-less programs (recon
+    also re-checks status, but failing here gives a clean message).
+    """
+    with Session(engine) as session:
+        program = session.get(Program, program_id)
+        if not program:
+            return HTMLResponse("Program not found", status_code=404)
+        if program.status != ProgramStatus.active:
+            return HTMLResponse("Program must be active to run recon", status_code=400)
+        if not (program.scope or []):
+            return HTMLResponse("Program has no scope defined", status_code=400)
+        name = program.name
+        pid = str(program.id)
+
+    client = request.app.state.temporal
+    if client is None:
+        return HTMLResponse("Temporal unavailable — is the stack up?", status_code=503)
+
+    # Timestamped ID so recon can be re-run without Temporal ID collisions.
+    workflow_id = (
+        f"recon-{name.lower().replace(' ', '-')}"
+        f"-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+    )
+    try:
+        await client.start_workflow(
+            "ReconWorkflow",
+            ReconInput(program_id=pid, triggered_by="manual"),
+            id=workflow_id,
+            task_queue="bounty-task-queue",
+        )
+    except Exception as e:
+        return HTMLResponse(f"Failed to start recon: {type(e).__name__}", status_code=500)
+
+    return RedirectResponse(url=f"/programs/{uuid.UUID(pid)}?recon=started", status_code=303)

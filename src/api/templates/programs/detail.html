@@ -25,6 +25,9 @@
     </form>
 
     {% elif program.status.value == "active" %}
+    <form method="post" action="/programs/{{ program.id }}/recon" style="display:inline">
+      <button type="submit" class="btn btn-primary" style="font-size:12px; padding:0.3rem 0.7rem;">Run recon ▶</button>
+    </form>
     <form method="post" action="/programs/{{ program.id }}/status" style="display:inline">
       <input type="hidden" name="status" value="paused">
       <button type="submit" class="btn" style="font-size:12px; padding:0.3rem 0.7rem;">Pause</button>
@@ -54,6 +57,21 @@
     {% endif %}
   </span>
 </div>
+
+{# ── Recon call-to-action / confirmation ─────────────────────────────────── #}
+{% if request.query_params.get("recon") == "started" %}
+<div style="background:#0f2f1a; border:1px solid #2f7f4f; color:#86efac; padding:0.7rem 0.9rem; border-radius:6px; margin-bottom:1rem; font-size:13px;">
+  ▶ Recon started. Watch it on <a href="/dashboard/health" style="color:#86efac; text-decoration:underline;">Health</a>
+  or the <a href="http://localhost:8080" target="_blank" style="color:#86efac; text-decoration:underline;">Temporal UI ↗</a>.
+</div>
+{% elif program.status.value == "active" and not recon_runs %}
+<div style="background:#12233a; border:1px solid #2f5f9f; color:#bcd7ff; padding:0.7rem 0.9rem; border-radius:6px; margin-bottom:1rem; font-size:13px; display:flex; align-items:center; justify-content:space-between; gap:1rem;">
+  <span>✓ Program is <strong>active</strong> — ready to discover assets. Run recon to enumerate and probe the in-scope hosts.</span>
+  <form method="post" action="/programs/{{ program.id }}/recon" style="margin:0;">
+    <button type="submit" class="btn btn-primary" style="font-size:12px; padding:0.35rem 0.8rem; white-space:nowrap;">Run recon ▶</button>
+  </form>
+</div>
+{% endif %}
 
 {# ── Compliance checklist — required before a program can be activated ────── #}
 <div class="card" style="margin-bottom:1rem; {% if not compliance_ok %}border-color:#7f1d1d;{% endif %}">
