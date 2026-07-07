@@ -18,6 +18,7 @@ from src.db.session import engine
 from src.db.models import Program, ProgramScore, ReconRun, Alert
 from src.db.models.program import ProgramStatus
 from src.lib.compliance import HACKERONE_RESEARCH_USERNAME
+from src.lib.recon_plan import recon_plan
 from src.workflows.types import ReconInput
 
 
@@ -522,6 +523,7 @@ async def program_detail(program_id: str, request: Request, api_key: str = Depen
         "scores": scores,
         "recon_runs": recon_runs,
         "constraints": program.constraints or {},
+        "recon_plan": recon_plan(program.constraints),
         "compliance": compliance_status(program),
         "compliance_ok": compliance_complete(program),
         "compliance_values": program.compliance or {},

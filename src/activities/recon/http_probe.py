@@ -32,14 +32,21 @@ async def probe_hosts(
     # we never exceed a program's stated request cap (e.g. 3 req/s for 23andMe).
     rate = rate_limit_rps if rate_limit_rps and rate_limit_rps > 0 else RATE_LIMIT
 
+    # Audit line: record the effective rate the probe actually uses, so a run's
+    # rate is verifiable in the worker log (not just assumed from the UI).
+    header_note = "with X-HackerOne-Research" if (platform == "hackerone" and HACKERONE_RESEARCH_USERNAME) else "no compliance header"
+    activity.logger.info(f"probe: {len(hosts)} hosts @ {rate} rps ({header_note})")
+
     cmd = [
         HTTPX,
         "-l", "/dev/stdin",
         "-json",
         "-silent",
-        # No -tech-detect here — fingerprint_tech runs as a separate parallel
-        # activity later in ReconWorkflow and does the same job. Including it
-        # here made httpx 10x slower and caused consistent 600s timeouts.
+        # -tech-detect runs inline now: ReconWorkflow probes + stores in bounded
+        # batches, so the extra per-host cost is capped per batch rather than
+        # applied to one huge monolithic probe (which previously timed out). This
+        # replaces the separate fingerprint_tech pass — one pass, and it scales.
+        "-tech-detect",
         "-rate-limit", str(rate),
         "-threads", str(MAX_THREADS),
         "-timeout", "5",

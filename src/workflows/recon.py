@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 from temporalio import workflow
 from temporalio.common import RetryPolicy
@@ -14,16 +15,27 @@ with workflow.unsafe.imports_passed_through():
     from src.activities.storage.diff_assets import diff_assets
     from src.activities.recon.subdomain_enum import enumerate_subdomains
     from src.activities.recon.http_probe import probe_hosts
-    from src.activities.recon.tech_fingerprint import fingerprint_tech
     from src.activities.recon.screenshot import capture_screenshots
     from src.activities.recon.js_crawl import crawl_js_files
     from src.activities.recon.hist_urls import collect_hist_urls
     from src.activities.recon.github_osint import run_github_osint
     from src.activities.notifications.discord_alert import send_discord_alert
+    from src.lib.recon_plan import effective_rps
 
 _RETRY = RetryPolicy(maximum_attempts=2, initial_interval=timedelta(seconds=10))
 _SHORT = timedelta(minutes=5)
 _LONG = timedelta(minutes=30)
+# Hosts are probed + stored in batches of this size so no single probe activity
+# exceeds its timeout and no Temporal payload gets large — this is what lets recon
+# scale to big wildcard scopes (e.g. Kong's *.konghq.com, 18K+ subdomains).
+_BATCH_SIZE = int(os.getenv("RECON_BATCH_SIZE", "500"))
+
+
+def batches(seq: list, size: int) -> list[list]:
+    """Split a list into consecutive chunks of at most `size` (deterministic —
+    safe to call inside the workflow)."""
+    size = max(1, size)
+    return [seq[i:i + size] for i in range(0, len(seq), size)]
 
 
 @workflow.defn
@@ -47,13 +59,11 @@ class ReconWorkflow:
         # reading them here keeps the workflow deterministic.
         platform = program.get("platform", "")
         constraints = program.get("constraints") or {}
-        # Stated cap is requests/minute; httpx wants requests/second. None lets
-        # probe_hosts fall back to its global default.
-        rpm = constraints.get("rate_limit_rpm")
-        probe_rate_rps = max(1, rpm // 60) if rpm else None
-        # Active tools (gowitness screenshots, katana JS crawl) send traffic to
-        # the target, so they only run when the program explicitly permits active
-        # scanning. Default is passive-only — safer and matches stricter programs.
+        # effective_rps() is the SAME function the program page uses to display the
+        # rate, so what the UI shows == what the probe actually uses. Active tools
+        # (katana/gowitness) send traffic to the target, so they only run when the
+        # program explicitly permits active scanning (default: passive-only).
+        probe_rate_rps = effective_rps(constraints)
         allow_active = bool(constraints.get("allow_active_scanning"))
 
         recon_run_id = await workflow.execute_activity(
@@ -74,28 +84,39 @@ class ReconWorkflow:
                 retry_policy=_RETRY,
             )
 
-            probe_results = await workflow.execute_activity(
-                probe_hosts,
-                # rate + platform let probe_hosts honor the program's request cap
-                # and attach any required identifying header (e.g. X-HackerOne-Research).
-                args=[subdomains, probe_rate_rps, platform],
-                start_to_close_timeout=_LONG,
-                retry_policy=_RETRY,
-            )
-
-            live_urls = [r["url"] for r in probe_results if r.get("url")]
-
             import asyncio
 
-            # Always-safe steps: fingerprint_tech works on probe_results (no
-            # target traffic) and collect_hist_urls reads public archives (passive).
-            tasks = [
-                workflow.execute_activity(
-                    fingerprint_tech,
-                    probe_results,
+            # Probe + store in batches: chunk the host list, probe one batch,
+            # store its results to the DB immediately, then move to the next.
+            # This keeps every probe under its timeout and every Temporal payload
+            # small (no giant result list crosses the boundary), so recon scales
+            # to large wildcard scopes. Assets appear incrementally, and a
+            # mid-run failure keeps everything already stored.
+            # tech-detect now runs *inside* the probe (httpx -tech-detect), so
+            # there is no separate fingerprint pass to also scale.
+            live_urls: list[str] = []
+            for batch in batches(subdomains, _BATCH_SIZE):
+                batch_results = await workflow.execute_activity(
+                    probe_hosts,
+                    # rate + platform: honor the program's request cap and attach
+                    # any required identifying header (e.g. X-HackerOne-Research).
+                    args=[batch, probe_rate_rps, platform],
+                    start_to_close_timeout=_LONG,
+                    retry_policy=_RETRY,
+                )
+                # scope + out_of_scope passed explicitly so validate_target() runs
+                # on every result before any DB write (empty scope = reject all).
+                await workflow.execute_activity(
+                    store_assets,
+                    args=[input.program_id, recon_run_id, batch_results, scope, out_of_scope],
                     start_to_close_timeout=_SHORT,
                     retry_policy=_RETRY,
-                ),
+                )
+                live_urls.extend(r["url"] for r in batch_results if r.get("url"))
+
+            # Passive post-processing runs once (operates on scope roots), plus
+            # active tools on the accumulated live URLs when explicitly permitted.
+            tasks = [
                 workflow.execute_activity(
                     collect_hist_urls,
                     scope,
@@ -103,7 +124,6 @@ class ReconWorkflow:
                     retry_policy=_RETRY,
                 ),
             ]
-            # Active tools hit the target directly — only run with explicit opt-in.
             if allow_active:
                 tasks.append(
                     workflow.execute_activity(
@@ -128,17 +148,6 @@ class ReconWorkflow:
                 run_github_osint,
                 scope,
                 start_to_close_timeout=_LONG,
-                retry_policy=_RETRY,
-            )
-
-            asset_ids = await workflow.execute_activity(
-                store_assets,
-                # scope and out_of_scope must be passed explicitly so validate_target()
-                # runs on every probe result before it is written to the database.
-                # Without them the guard short-circuits (empty scope = skip validation)
-                # and OOS assets would be stored.
-                args=[input.program_id, recon_run_id, probe_results, scope, out_of_scope],
-                start_to_close_timeout=_SHORT,
                 retry_policy=_RETRY,
             )
 
