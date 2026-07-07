@@ -73,6 +73,25 @@
 </div>
 {% endif %}
 
+{# ── Recon plan — exactly what "Run recon" will execute (derived from constraints) #}
+<div style="border:1px solid var(--border); border-radius:6px; padding:0.7rem 0.9rem; margin-bottom:1rem; font-size:13px;">
+  <div style="font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-size:12px; margin-bottom:0.5rem;">
+    Recon plan — what “Run recon” will do
+  </div>
+  <div style="line-height:1.9;">
+    <div><strong>Rate:</strong> {{ recon_plan.rate_rps }} req/sec <span style="color:var(--text-muted);">({{ recon_plan.rate_source }})</span> — applied to target-facing tools</div>
+    <div><strong>Target-facing</strong> <span style="color:var(--text-muted);">(sends requests to in-scope hosts; rate-limited{% if program.platform == "hackerone" %}, X-HackerOne-Research header{% endif %}):</span>
+      {% for t in recon_plan.target_facing %}<code>{{ t }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+    <div><strong>Passive</strong> <span style="color:var(--text-muted);">(third-party data — no target traffic):</span>
+      {% for t in recon_plan.passive %}<code>{{ t }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+    <div><strong>Active scanning:</strong>
+      {% if recon_plan.active_scanning %}<span style="color:#fca5a5;">ON</span>{% else %}<span style="color:#86efac;">OFF</span> — skipping {% for t in recon_plan.tools_skipped %}<code>{{ t }}</code>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+    </div>
+  </div>
+</div>
+
 {# ── Compliance checklist — required before a program can be activated ────── #}
 <div class="card" style="margin-bottom:1rem; {% if not compliance_ok %}border-color:#7f1d1d;{% endif %}">
   <div style="font-size:13px; font-weight:600; margin-bottom:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">
