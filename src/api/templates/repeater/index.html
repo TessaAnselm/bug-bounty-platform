@@ -43,7 +43,12 @@
   </div>
 
   <label style="font-size:12px; color:var(--text-muted);">Headers (one per line, <code>Key: Value</code>)</label>
-  <textarea name="headers" rows="4" style="width:100%; box-sizing:border-box; font-family:monospace; margin-bottom:0.5rem;">{{ form.headers }}</textarea>
+  <textarea name="headers" rows="4" style="width:100%; box-sizing:border-box; font-family:monospace; margin-bottom:0.25rem;">{{ form.headers }}</textarea>
+  {% if compliance.header_required %}
+  <div style="font-size:11px; color:var(--text-muted); margin-bottom:0.5rem;">
+    The required compliance header is pre-filled and <strong>force-applied on send</strong> — editing or removing it here is ignored. Copy it into your browser/Burp (e.g. ModHeader) to keep manual testing compliant too.
+  </div>
+  {% endif %}
 
   <label style="font-size:12px; color:var(--text-muted);">Body</label>
   <textarea name="body" rows="5" style="width:100%; box-sizing:border-box; font-family:monospace; margin-bottom:0.5rem;">{{ form.body }}</textarea>

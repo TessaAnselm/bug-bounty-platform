@@ -191,7 +191,12 @@ async def repeater_page(
         compliance = _compliance_info(program.platform or "", program.scope, program.out_of_scope, program.constraints)
         history = _load_history(s, session)
         findings = _load_findings(s, str(program.id), str(hunt.asset_id) if hunt.asset_id else None)
-        form = {"method": "GET", "url": "", "headers": "", "body": "", "label": ""}
+        # Pre-fill the required compliance header so it's visible in the editor
+        # and easy to copy into your browser/Burp. It's also force-applied
+        # server-side on send, so editing/removing it here can't send a
+        # non-compliant request — this is just for visibility/convenience.
+        prefilled_headers = _headers_to_text(compliance_headers(program.platform or ""))
+        form = {"method": "GET", "url": "", "headers": prefilled_headers, "body": "", "label": ""}
         if from_id:
             ex = s.get(HttpExchange, from_id)
             if ex and str(ex.hunt_session_id) == session:
