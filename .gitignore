@@ -2,6 +2,7 @@
 targets/
 reports/
 .claude/
+FUTURE_FIX.md
 *.json
 *.xml
 *.csv
