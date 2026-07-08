@@ -5,7 +5,7 @@ This checklist tracks whether BountyOS is safe, reliable, and ready to use on au
 ## Baseline
 
 - Test command: `.venv/bin/python -m pytest tests/ -q`
-- Current automated result: `25 passed`
+- Current automated result: `93 passed`
 - Rule: tests must not hit real bug bounty targets.
 - Rule: database tests must use a test database, not the live bounty database.
 - Rule: workflow tests should mock recon activities unless explicitly testing the local stack.
@@ -16,12 +16,12 @@ This checklist tracks whether BountyOS is safe, reliable, and ready to use on au
 - [x] Out-of-scope entries override in-scope entries.
 - [x] Wildcard scope allows matching subdomains.
 - [x] URL targets are normalized before scope matching.
-- [ ] Scope matching handles ports predictably.
-- [ ] Scope matching handles uppercase/mixed-case targets.
+- [x] Scope matching handles ports predictably. (`test_scope` — port stripped before matching)
+- [x] Scope matching handles uppercase/mixed-case targets. (`test_scope`)
 - [x] Store-assets rejects out-of-scope probe results before DB write.
 - [x] Store-assets rejects all probe results when program scope is empty.
 - [x] Program status blocks recon unless status is `active`.
-- [ ] Active recon tools run only when `allow_active_scanning` is enabled.
+- [x] Active recon tools run only when `allow_active_scanning` is enabled. (`test_recon_gate` — real workflow, mocked tools)
 
 ## Authentication
 
@@ -57,7 +57,7 @@ This checklist tracks whether BountyOS is safe, reliable, and ready to use on au
 
 ## Database
 
-- [ ] Migrations upgrade cleanly from an empty database.
+- [x] Migrations upgrade cleanly from an empty database. (`test_migrations` — throwaway DB, asserts schema at head)
 - [ ] Migrations downgrade/upgrade round trip cleanly.
 - [ ] Program can be created with scope and out-of-scope lists.
 - [ ] Duplicate programs are handled predictably.
@@ -86,8 +86,8 @@ This checklist tracks whether BountyOS is safe, reliable, and ready to use on au
 - [ ] Recon workflow marks successful run completed.
 - [ ] Recon workflow marks failed run failed.
 - [ ] Recon workflow passes scope and out-of-scope to storage.
-- [ ] Recon workflow skips active tools by default.
-- [ ] Recon workflow honors per-program rate limit constraints.
+- [x] Recon workflow skips active tools by default. (`test_recon_gate`)
+- [~] Recon workflow honors per-program rate limit constraints. (rate math tested in `test_recon_plan`; workflow→probe wiring not yet asserted end-to-end)
 - [ ] Monitor workflow starts recon on schedule.
 - [ ] Finding workflow requires human status signals.
 
@@ -115,8 +115,8 @@ This checklist tracks whether BountyOS is safe, reliable, and ready to use on au
 - [x] Repeater forces configured compliance headers over user-supplied values.
 - [x] Repeater redacts sensitive request/response body values for MCP/AI views.
 - [x] Repeater displays response headers with sensitive values redacted.
-- [ ] Repeater pins resolved IP during send or otherwise mitigates DNS rebinding.
-- [ ] Repeater send success path persists capped response body and exchange metadata.
+- [x] Repeater pins resolved IP during send or otherwise mitigates DNS rebinding. (`test_dns_pinning`)
+- [x] Repeater send success path persists capped response body and exchange metadata. (`test_repeater_send`)
 - [ ] Repeater rate limiter is tested without sleeping.
 
 ## Startup And Operations
@@ -136,6 +136,7 @@ This checklist tracks whether BountyOS is safe, reliable, and ready to use on au
 - [ ] MCP search handles empty query safely.
 - [ ] MCP summarize handles missing program safely.
 - [ ] MCP tools do not mutate database state.
+- [x] MCP exchanges resource masks stored secrets before AI review. (`test_mcp_exchanges`)
 
 ## Manual Pre-Hunt QA
 
@@ -156,12 +157,15 @@ Run this before using the platform on a real authorized program:
 
 ## Release Blockers
 
-Any of these should block use on a real program until fixed:
+Any of these should block use on a real program until fixed. Items marked
+(guarded) now have automated regression tests so a change can't silently
+reintroduce them:
 
-- Scope bypass or out-of-scope storage.
+- Scope bypass or out-of-scope storage. (guarded — `test_scope`, `test_store_assets`)
 - Raw API key stored in browser cookie, URLs, logs, or templates.
-- Recon can run on paused or archived programs.
-- Active scanning runs without explicit program permission.
-- Failed recon appears successful.
+- Recon can run on paused or archived programs. (guarded — status gate)
+- Active scanning runs without explicit program permission. (guarded — `test_recon_gate`)
+- Failed recon appears successful. (mitigated — batched probe stores per batch; a
+  timed-out batch no longer zeroes the whole run)
 - Tests require real external targets.
-- Test data writes to the live bounty database.
+- Test data writes to the live bounty database. (`test_migrations` uses a throwaway DB)
