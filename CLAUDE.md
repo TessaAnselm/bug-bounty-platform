@@ -137,29 +137,43 @@ Score improves over time from outcomes table (what signals predicted real findin
 
 ---
 
-## V1 Build Status
+## Build Status
 
-**All 6 steps complete. Safety hardening complete. Ready to hunt.**
+**V1 + hunter decision layer complete. Actively hunting.**
 
 ```
-Step 1:   Docker Compose + Temporal + PostgreSQL setup      ✓
-Step 2:   DB schema + Alembic migrations                    ✓
-Step 3:   Python Temporal workers + 4 core workflows        ✓
-Step 4:   FastAPI dashboard (program, asset, finding views) ✓
-Step 5:   MCP server (read-only resources)                  ✓
-Step 6:   CI pipeline (gitleaks + Snyk + Semgrep + pytest)  ✓
-Post-V1:  Safety guardrails (scope enforcement, confidence) ✓
+V1 core:
+  Step 1:   Docker Compose + Temporal + PostgreSQL setup      ✓
+  Step 2:   DB schema + Alembic migrations (8 revisions)      ✓
+  Step 3:   Python Temporal workers + 4 core workflows        ✓
+  Step 4:   FastAPI dashboard (program, asset, finding views) ✓
+  Step 5:   MCP server (read-only resources + exchanges)      ✓
+  Step 6:   CI pipeline (gitleaks + Snyk + Semgrep + pytest)  ✓
+  Safety:   Scope enforcement, confidence, loopback-only      ✓
+
+Hunter decision layer (built since V1):
+  Program discovery (bounty-targets-data) + scoring/triage    ✓
+  Program lifecycle: draft → active gate (compliance checklist)✓
+  Recon constraints: per-program rate, active-scan gate,
+    single-source recon plan, batched probe (wildcard-scale)  ✓
+  Hunt sessions + tag-driven methodology checklists           ✓
+  Repeater: in-platform request sender (scope/SSRF/rate/header
+    enforced, DNS-rebind-pinned) → http_exchanges store       ✓
+  Evidence: attach exchanges to findings (asset-scoped)       ✓
+  Report export (markdown/HackerOne/Bugcrowd, redacted)       ✓
+  Outcome feedback loop                                       ✓
 ```
 
-See PROGRESS.md for full history.
+See PROGRESS.md and QA_TRACKER.md for full history and the living gap list;
+FUTURE_FIX.md for the housekeeping + MITM-proxy proposal.
 
 ---
 
-## V2 Features (After First Paid Finding)
+## Next / Planned
 
-Program discovery (bounty-targets-data), full scoring model, platform API sync
-(HackerOne/Bugcrowd), CT log monitoring, outcomes/feedback loop, report export
-pipeline, artifact storage.
+Platform API sync (HackerOne/Bugcrowd), CT log monitoring, artifact storage,
+and a built-in MITM intercepting proxy (mitmproxy addon) wired into the same
+scope-checked, redacted, evidence→finding pipeline — see FUTURE_FIX.md §3.
 
 ---
 

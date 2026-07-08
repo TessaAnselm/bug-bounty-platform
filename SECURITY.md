@@ -58,6 +58,23 @@ is never carried around the app — a session-token model isolates it:
 - **Programmatic access** — curl/scripts authenticate per request with the raw key via `X-API-Key` header or `?api_key=` query param.
 - **Loopback only** — the dashboard binds to `127.0.0.1`; it is not reachable from the network.
 
+## Evidence Storage & Secrets at Rest
+
+The Repeater and (future) proxy capture real request/response traffic into the
+`http_exchanges` table. These rows are stored **un-redacted** on purpose — a
+report needs the actual evidence, including any auth tokens or session cookies
+that were on the wire. Redaction (`redact_headers` / `redact_text` in
+`src/lib/compliance.py`) is a **presentation-layer control**, not an at-rest one:
+it is applied on every path that *leaves* the database — the MCP exchanges
+resource (so Claude Code never sees raw tokens) and the report exporter (so
+submitted reports are scrubbed) — but the raw bytes remain in the local DB.
+
+This is acceptable because the database is loopback-only PostgreSQL on your own
+machine (see Dashboard Authentication and the loopback bind). Treat the local DB
+as sensitive: it may contain your own session tokens and target response data.
+Do not expose PostgreSQL beyond `127.0.0.1`, and wipe captured evidence
+(`http_exchanges`) when a program engagement ends if you don't need it.
+
 ## Secrets Management
 
 - All credentials live in `.env` (gitignored — never committed)

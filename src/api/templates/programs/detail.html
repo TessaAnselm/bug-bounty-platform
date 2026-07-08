@@ -126,7 +126,7 @@
     <div style="{{ hint }}">Current: <strong>{% if constraints.rate_limit_rpm %}{{ constraints.rate_limit_rpm }} req/min{% else %}default 3 req/sec{% endif %}</strong>. Set a per-program cap under <strong>Program Constraints</strong> (req/min) to match policy — e.g. a 3/sec policy = <code>180</code>.</div>
 
     <label style="display:block; font-size:13px;"><input type="checkbox" name="active_scanning_confirmed" {% if compliance_values.active_scanning_confirmed %}checked{% endif %}> Active-scanning policy confirmed</label>
-    <div style="{{ hint }}">Current: <strong>{% if constraints.allow_active_scanning %}ON{% else %}OFF (default){% endif %}</strong>. Default is OFF — passive only (no katana / gowitness / nuclei). Turn on only if the program explicitly permits automated scanning.</div>
+    <div style="{{ hint }}">Current: <strong>{% if constraints.allow_active_scanning %}ON{% else %}OFF (default){% endif %}</strong>. Default is OFF — passive only (no katana / gowitness). Turn on only if the program explicitly permits automated scanning.</div>
 
     <div style="margin:0.5rem 0;">
       <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Prohibited tools / vuln classes (per program policy) — required, must be non-empty</label>

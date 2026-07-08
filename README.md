@@ -71,7 +71,7 @@ Scope Guard         → validate_target() blocks out-of-scope before any storage
       ↓
 Passive Recon       → subfinder, gau, crt.sh, GitHub Search, SecurityTrails, Whoxy
       ↓
-Active Recon        → httpx, katana, gowitness, nuclei (scope-confirmed only)
+Active Recon        → httpx (probe), katana, gowitness (scope-confirmed, gated)
       ↓
 Asset Inventory     → normalized table: value, type, risk_score, tags, source_tool
       ↓
@@ -126,7 +126,7 @@ Built entirely on free and open source tools. Runs locally — no cloud, no mont
 | Dashboard | FastAPI + Jinja2 |
 | AI interface | Claude Code + MCP server (read-only) |
 | Passive recon | subfinder, gau, crt.sh (coming) |
-| Active recon | httpx, katana, gowitness, nuclei, truffleHog |
+| Active recon | httpx (probe + tech-detect), katana, gowitness — gated by `allow_active_scanning` |
 | Security scanning | Snyk + Semgrep + gitleaks |
 | CI | GitHub Actions |
 | Infra | Docker Compose (local Mac mini) |
