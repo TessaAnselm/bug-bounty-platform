@@ -9,6 +9,7 @@ Every send is guarded before it leaves the host:
   5. no auto-redirect (3xx surfaced, never auto-chased to an OOS host)
 Each exchange is stored for evidence and MCP/AI review.
 """
+import json
 import time
 import uuid
 import asyncio
@@ -113,6 +114,24 @@ def _blocked_header_names(headers: dict) -> list[str]:
 def _headers_to_text(headers: dict | None) -> str:
     """Render a headers dict back into "Key: Value" lines for the editor textarea."""
     return "\n".join(f"{k}: {v}" for k, v in (headers or {}).items())
+
+
+def _pretty_body(body: str, headers: dict | None) -> str | None:
+    """Indented JSON view of the response body when it parses as JSON, else None.
+
+    Powers the Repeater's "Pretty" toggle — API responses (Deriv's are JSON) are
+    far easier to read formatted. Returns None for non-JSON (HTML shells, etc.),
+    so the panel falls back to the raw view.
+    """
+    if not body:
+        return None
+    ctype = next((v for k, v in (headers or {}).items() if k.lower() == "content-type"), "")
+    if "json" not in ctype.lower() and body.lstrip()[:1] not in ("{", "["):
+        return None
+    try:
+        return json.dumps(json.loads(body), indent=2, ensure_ascii=False)
+    except (ValueError, TypeError):
+        return None
 
 
 def _exchange_dict(ex: HttpExchange) -> dict:
@@ -343,6 +362,8 @@ async def send_request(
         "time_ms": elapsed,
         "headers": redact_headers(resp_headers),
         "body": resp_body,
+        "pretty": _pretty_body(resp_body, resp_headers),
+        "size": len(resp_body),
         "exchange_id": ex_id,
     })
 

@@ -71,7 +71,24 @@
     <pre style="background:var(--bg); border:1px solid var(--border); padding:0.6rem; overflow:auto; font-size:12px;">{% for k, v in response.headers.items() %}{{ k }}: {{ v }}
 {% endfor %}</pre>
   </details>
+  <div style="display:flex; gap:1rem; align-items:center; margin-bottom:0.3rem; font-size:12px; color:var(--text-muted);">
+    <span>Body — {{ response.size }} bytes{% if response.size >= 524288 %} (truncated){% endif %}</span>
+    {% if response.pretty %}
+    <label style="cursor:pointer;">
+      <input type="checkbox" id="repeater-raw-toggle" onchange="
+        document.getElementById('repeater-body-pretty').style.display = this.checked ? 'none' : 'block';
+        document.getElementById('repeater-body-raw').style.display = this.checked ? 'block' : 'none';
+      "> show raw
+    </label>
+    <span>· pretty-printed JSON</span>
+    {% endif %}
+  </div>
+  {% if response.pretty %}
+  <pre id="repeater-body-pretty" style="background:var(--bg); border:1px solid var(--border); padding:0.6rem; overflow:auto; max-height:420px; font-size:12px;">{{ response.pretty }}</pre>
+  <pre id="repeater-body-raw" style="display:none; background:var(--bg); border:1px solid var(--border); padding:0.6rem; overflow:auto; max-height:420px; font-size:12px;">{{ response.body }}</pre>
+  {% else %}
   <pre style="background:var(--bg); border:1px solid var(--border); padding:0.6rem; overflow:auto; max-height:420px; font-size:12px;">{{ response.body }}</pre>
+  {% endif %}
 
   <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
     <span style="font-size:12px; color:var(--text-muted);">Save as evidence:</span>
